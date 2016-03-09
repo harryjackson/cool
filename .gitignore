@@ -1,4 +1,5 @@
 build/*
+docs/dox/*
 *a.out
 *CMakeFiles.txt
 *lex.yy.c
