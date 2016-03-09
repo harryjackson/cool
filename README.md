@@ -1,8 +1,7 @@
-\mainpage 
 
-Cool Virtual Machine
+# Cool Virtual Machine
 
-\section Introduction
+## Introduction
 
 I'm still trying to figure out Doxygen at the moment. This means this page will
 likely look a little odd as I learn it's markup etc.
@@ -10,8 +9,13 @@ likely look a little odd as I learn it's markup etc.
 Most of this is randmom musings ie thoughts about language design etc. Some
 items might not even be possible.
 
+Note. A lot of the code here is happy path ie if malloc does not give me a
+valid pointer I abort() etc. I'm trying to cover as much ground as I can
+without getting bogged down in things like performance, perfect code, perfect
+api's etc. I write basic tests for almost everying and use valgrind and Xcodes
+leak detector but that's it. This is not production quality C.
 
-\section Aims
+## Aims
 
 The aim of this is education at this point. In particular I want to learn more 
 about
@@ -40,14 +44,13 @@ I'm not attempting anything so bold as a distributed OS but communication of
 independant processes in a network is something I'd like to achieve even if 
 it's only doing simple tasks.. 
 
-\section Installation
+## Installation
 
 The entire project is written in C.
 
 I use Cmake where the src directory is ./src and build is ./build.  Cmake
-generates an XCode project for me that I then use for all development. I'm 
-using an out of source build so I can compeltely blast everythign under 
-./build and start from scratch. 
+generates an XCode project. I'm using an out of source build so I can
+compeltely blast everythign under ./build and start from scratch. 
 
 
 To generate an XCode project do this...
@@ -57,12 +60,12 @@ cd ./build
 cmake -G Xcode ../
 ````
 
-Then open the project in Xcode and you should be able to run some of the tests 
-etc
+Then open the XCode project file in ./build in Xcode and you should be able 
+to run some of the tests etc
 
-\section Cool Assembly Language (casm)
+## Cool Assembly Language (casm)
 
-\subsection Casm Intro
+### Casm Intro
 
 I think the name Casm is perfect because there's a casm between Casm and real
 assembler. The VM willl load casm files in ascii or binary. I've chosen ascii
@@ -76,15 +79,15 @@ semantics easier to reason about if the BE has a clean separation.
 
 The Casm file format belongs to the backend.
 
-\subsection Casm Features
+### Casm Features
 
-Some  things are very difficult to impplement, in particular anything to do
+Some  things are very difficult to implement, in particular anything to do
 with the VM working in a network environment with other VM's in some sort of
 distributed OS. I believe error handling might be an unsolvable problem ie
 there are two many tradeoffs with any of the popular methods that make [none of
 them great.](https://en.wikipedia.org/wiki/Perfect_is_the_enemy_of_good)
 
-\subsection Must have features
+### Must have features
 
 Some of these sound simple enough. I've listed them here so anyone can quckly 
 see what exists and what doesn't.
@@ -111,14 +114,14 @@ see what exists and what doesn't.
 </table>
 
 
-\subsection Base Wish list
+## Base Wish list
 
 The basic list does not imply simplest to develop it just sets the base set of
-features required to enable me to play with problems in concurrency. Having
-multiple cores is more important than green threads because we can play with
-concurrency issues using a VM per OS thread. If I manage to design a simple VM
-with these feature I'd consider it a success ie I'd have learned an awful lot
-just by doing this because at the outset how do so this was purely theoretical.
+features required to enable me to play with concurrency. Having multiple cores
+is more important than green threads because we can play with concurrency
+issues using a VM per OS thread. If I manage to design a simple VM with these
+feature I'd consider it a success ie I'd have learned an awful lot just by
+doing this because at the outset most of this was just theory to me..
 
 1. Import Objects. Sounds trivial enough but this is inherently tricky. It's
    also really important ie Java's import, Perl's use etc define a large part
@@ -127,11 +130,12 @@ just by doing this because at the outset how do so this was purely theoretical.
 2. Multicore VM ie the VM should have multiple cores and this should be
    supported by Casm.
 3. Error handling by the VM ie we should do our best to provide decent errors 
-   that make it easy to see where the problem is. 
+   that make it easy to see where the problem is. Note, I'm not referring to 
+   error handling in the Frontend I consider that a harder problem to do well.
 4. Design a simple Frontend Language that targets Casm and supports concurrency 
-   ins some form. This is vague because I don't know what method I'll use yet.
+   in some form. This is vague because I don't know what method I'll use yet.
 
-\subsection Larger Wish list
+## Larger Wish list
 
 Some other features that would be great to add
 
@@ -140,25 +144,26 @@ Some other features that would be great to add
 2. Debugging should be builtin ie the ability to call "BREAK" in Casm and have
    a debugger appear on a port number that can then be queried.
 3. Events/Signals. These should be native. Not sure what this means yet but it
-   should be easy to implement events loops etc in the Frontend. I'd also like
+   should be easy to implement event loops etc in the Frontend. I'd also like
    to add things like events on functions etc.
 4. Garbage collection?  Is there any benefit to supporting both explicit and
    implicit garbage collection? Garbage collection is a massive topic and I've
    found some great reading on it?
 5. Tail Calls. This is not easy in C but doable. Not having tail calls will
    make it hard to support functional languages. Note, I've already made our
-   stack a list of stack frames as opposed to a fixed block of memory to help
-   with things like this.
+   stack a linked list of stack frames as opposed to a fixed block of memory 
+   to help with things like this.
 6. Benchmarkingi/Profiling. While I've read a lot of material saying that
    performance is not something to worry about when designing a language it's
    how almost all language get ranked.
-7. Testing. Testing should also be builtin. I like how golang does it.
+7. Testing should also be builtin. I like how golang does it.
 8. Support a REPL?
 9. Compile Casm to C
 10. Error handling? Open question. I think this is probably the single hardest
     thing to get right because there is no correct way to do it. Exceptions
     suck, passing errors around suck.
-
+11. JIT go native. Compiling to C would be where I'd start and then work 
+    from there.
 
 Garbage collection is tough and I think I could spend years on it. I don't
 think I'll be able to work on any serious garbage collector so I might
@@ -176,7 +181,7 @@ all at once ie in a function we create a memory pool. All subsequent calls
 would allocate from this pool and when complete would deallocate the whole
 thing.  This would impose limits on threading etc ie what pool to choose from
 but if every thread is a new VM this might work ok.  Note, I'm not hiding this
-from the Frontend I think the FE would need to 
+from the Frontend I think the FE.
 
 The memory pool idea would allow me to get to a half way house ie some memory
 collection in the FE language or the FE language specifies which memory pool
@@ -218,33 +223,40 @@ void parent() {
 
 Would it be possible to have garbage collection and the ability to free object
 explicitly. This might be a way to avoid expensive stop the world collections.
-This is one area that's really interesting. I think I may need to invest in the
-following book before embarking on some half assed attempt that's been put to
-bed as a bad idea by people smarter than me.
+This is one area that's really interesting. I've just invested in the following
+book before embarking on some half assed attempt that's been put to bed as a
+bad idea by people smarter than me.
 
 [The Garbage Collection Handbook](http://amzn.com/1420082795)
 
 
-\subsection Casm Calling Conventions
+## Casm Calling Conventions
 
-This has caused me no end of consternation. A fixed convvention is easy to write but 
-it's in part starting to limit the frontend. I like the idea of a fixed set because 
-it's simple to implement and easy to explain to people.
+This has caused me no end of consternation. A fixed convvention is easy to
+write but it's in part starting to limit the frontend. I like the idea of a
+fixed set because it's simple to implement and easy to explain to people. What
+I mean by fixed is I don't make any attempt to judge how many registers are
+being copied i always copy them regardess.  I'm not sure yet what limits my
+linked list frames are going to impose on me but not being able to easily grow
+the frame might be a PITA. 
 
 
 
-\section Class Loader 
-The class loaded is where we load each file into the ...
+## Class Loader 
+The class loaded is where we load each file into the Machine. When the class
+gets loaded it gets an ID etc. Execution starts at at the method in Casm with
+the following signature main:(IS)(I). I've not figured out how to call external
+objects yet.
 
-\section Scoping
+## Scoping
 
 I think wars have been fought over this. Here are some question that need 
-answering
+answering...
 
 1. Should each Object be completely private ie no mutable state exported unless
 it's in a function. Personally YES!. Objects expose interfaces not data.
 2. Should exporting be process/thread based ie you don't call a function you send 
-it a message 
+it a message. YES. 
 3. Import, should you be able to import the whole library or make it explicit what 
 gets pulled in ie You must explicitly import anything you want ie you cannnot 
 "import math" and get "cos/sin/tan" etc. You need to expilicitly import each 
@@ -261,9 +273,8 @@ Personally most time I see wildcards imports is laziness, and laziness is not
 always a bad thing.
 
 Or we offload that to the compiler and it only loads what's needed. This would
-be difficult to implement if we allow first class functions ie tracking what
-has and has not been loaded is hard.
-
+be difficult to implement if we allow first class functions to be passed around as 
+variable  then tracking what has and has not been loaded is hard.
 
 4. Should we use "link" and "use" ie we can "link" to a library and "use" 
 its exported functions.
@@ -272,17 +283,17 @@ its exported functions.
 does not mean you can use it like "var f = sin(foo);" ie namespaces are never 
 polluted.
 
-\section Error Handling
+## Error Handling
 
 For the record I don't like Exceptions in Java/C++ etc. I prefer explicit error 
 handling even though it peppers the code full of boiler plate.
 
 Interesting ways to implemetn error handling
 
-1. Result objects in place of normal return types.
-2. Multiple return types
-3. Code at the end of the function that gets called on 
-error detection from any function called.
+1. Result objects in place of normal return types. Rust and some others do this.
+2. Multiple return types like Go
+3. Code at the end of the function that gets called on error detection from any
+   function called.
 
 
 Great read on Erlangs philosophy on errors.
@@ -293,7 +304,6 @@ Joe Duffy covers a lot of ground on various languages error handling here.
 
 [Andrew Binstock, some thought son error handling](http://www.drdobbs.com/architecture-and-design/the-scourge-of-error-handling/240143878)
 
-Some pseudo code
 
 Go's error handling
 
@@ -368,7 +378,7 @@ file := try:File("/badfilepath.txt").(/dev/null);
 
 
 
-\section Language Design Reading
+## Language Design Reading
 
 Where I find interesting articles I'll drop them in here...
 
