@@ -348,7 +348,7 @@ fn main() {
 
 use std::num::ParseIntError;
 
-fn double\_number(number\_str: &str) -> Result<i32, ParseIntError> {
+fn double_number(number_str: &str) -> Result<i32, ParseIntError> {
     match number_str.parse::<i32>() {
         Ok(n) => Ok(2 * n),
         Err(err) => Err(err),
@@ -363,16 +363,13 @@ fn main() {
 }
 
 
-````
 func fileOpener(string filepathbad)
 // propogate the error
 file := File(filepathbad).err(){
   return Error("Bad file path" ++ filepathbad);
 };
 
-//Handle the error
 file := try:File("/badfilepath.txt").(/dev/null);
-
 
 ````
 
