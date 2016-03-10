@@ -9,23 +9,25 @@
 #include <stdio.h>
 #include <string.h>
 
+#define BOOOM assert(1 == 2);
+
 #define COOL_M_CAST_FUNC               \
 func_obj * f_obj = (func_obj*)c_func->obj;
 
 #define COOL_M_CAST_OBJ                \
 obj_obj * obj = (obj_obj*)c_obj->obj;
 
-#define WOUT(d,c) obj_memcpy(obj, &obj->buf->mem.b8[obj->rw_pos], d, c); obj->rw_pos += c;
-#define RIN(d,c)  obj_memcpy(obj, d, &obj->buf->mem.b8[obj->rw_pos], c); obj->rw_pos += c;
+//#define WOUT(d,c) obj_memcpy(obj, &obj->buf->mem.b8[obj->rw_pos], d, c); obj->rw_pos += c;
+//#define RIN(d,c)  obj_memcpy(obj, d, &obj->buf->mem.b8[obj->rw_pos], c); obj->rw_pos += c;
 
 //#define W8(d)  WOUT(d,1)
-#define W16(d) WOUT(d,2)
-#define W32(d) WOUT(d,4)
+//#define W16(d) WOUT(d,2)
+//#define W32(d) WOUT(d,4)
 //#define W64(d) WOUT(d,8)
 
 //#define R8(d)  RIN(d,1)
-#define R16(d) RIN(d,2)
-#define R32(d) RIN(d,4)
+//#define R16(d) RIN(d,2)
+//#define R32(d) RIN(d,4)
 //#define R64(d) RIN(d,8)
 
 /*
@@ -72,7 +74,7 @@ static uint32_t      obj_magic(CoolObj *c_obj);
 static uint16_t      obj_major(CoolObj *c_obj);
 static uint16_t      obj_minor(CoolObj *c_obj);
 static uint16_t      obj_cp_count(CoolObj *c_obj);
-static void          obj_addMethod(CoolObj *c_obj, CoolMethod * meth);
+//static void          obj_addMethod(CoolObj *c_obj, CoolMethod * meth);
 static void          obj_addFunc(CoolObj *c_obj, CoolObjFunc * func, CoolQueue *q);
 static void          obj_addConsts(CoolObj *c_obj, CoolQueue *q);
 static CoolObjFunc * obj_newFunc(CoolObj *c_obj, const char *sig);
@@ -128,7 +130,6 @@ static CoolObjOps OBJ_OPS = {
   obj_minor,
   obj_cp_count,
   obj_toString,
-  obj_addMethod,
   obj_addFunc,
   obj_addConsts,
   obj_newFunc,
@@ -361,8 +362,6 @@ static CoolObjFunc * obj_findFunc(CoolObj *c_obj, const char *sig) {
   return &obj->func_array[fid];
 }
 
-
-
 static size_t func_id(CoolObjFunc *c_func) {
   COOL_M_CAST_FUNC;
   return f_obj->id;
@@ -417,63 +416,13 @@ static void obj_addFunc(CoolObj *c_obj, CoolObjFunc * func, CoolQueue *q) {
   for(i = 0; i < f_obj->i_count; i++) {
     CInst *in = q->ops->deque(q);
     assert(in != NULL);
-    //printf("inid=%zu\n", in->arr[0]);
-    //printf("Inst %s count=%zu\n", OpStrings[in->arr[0]].name, f_obj->i_count);
-    //printf("count=%zu\n", f_obj->i_count);
     f_obj->inst[i].i32 = in->i32;
-    if(fid == 2 && in->arr[0] == OP_CALL) {
-      assert(in->s.rs != 0);
-      //printf("rs=%hhu\n", in->s.rs);
-    }
     free(in);
   }
   assert(q->ops->length(q) == 0);
   return;
 }
 
-
-static void obj_addMethod(CoolObj *c_obj, CoolMethod * meth) {
-  COOL_M_CAST_OBJ;
-  assert(meth != NULL);
-
-  size_t sig_len = strnlen(meth->sig, COOL_MAX_OBJECT_METHOD_SIGNATURE + 1);
-  //printf("sig_len=%zu\n", sig_len);
-  assert(sig_len <= COOL_MAX_OBJECT_METHOD_SIGNATURE);
-
-  size_t name_len = strcspn(meth->sig, ":");
-
-  //printf("s obj_method=%zu\n", sizeof(obj_method));
-  obj_method *m  = malloc(sizeof(obj_method));
-  m->name        = malloc(name_len + 1);
-  m->sig         = malloc(sig_len + 1);
-  m->bcode       = malloc(sizeof(CInst) * meth->inst_cnt);
-  m->inst_cnt    = meth->inst_cnt;
-  assert(m);
-  assert(m->name);
-  assert(m->sig);
-  assert(m->inst_cnt);
-
-  //assert(m->inst_cnt == 3);
-  memcpy(m->name, meth->sig, name_len);
-  memcpy(m->sig , meth->sig, sig_len);
-  m->name[name_len] = '\0';
-  m->sig[sig_len]   = '\0';
-
-  size_t i = 0;
-  for(i = 0l; i < meth->inst_cnt; i++) {
-    m->bcode[i] = meth->bcode[i];
-  }
-  obj->method_que->ops->enque(obj->method_que, m);
-  return;
-}
-
-
-static size_t obj_memcpy(obj_obj *obj, void *sink, void *source, size_t size) {
-  uint8_t *dest = (uint8_t*)sink;
-  uint8_t *src  = (uint8_t*)source;
-  memcpy(dest, src, size);
-  return size;
-}
 
 //static void obj_slurp_file(obj_obj *obj) {
 //  uint8_t * buff;
@@ -489,29 +438,34 @@ static size_t obj_memcpy(obj_obj *obj, void *sink, void *source, size_t size) {
 //  assert(amount == flen);
 //}
 
+
 static uint32_t obj_read_magic(obj_obj *obj) {
-  R32(&obj->mag);
+  BOOOM;
+  //R32(&obj->mag);
   //obj_memcpy(obj, &obj->mag, obj->buffer, sizeof(uint32_t));
   return obj->mag;
 }
 
 static uint32_t obj_write_magic(obj_obj *obj) {
-  W32(&obj->mag);
+  BOOOM;
+  //W32(&obj->mag);
   uint32_t tmp = ((uint32_t)obj->buf->mem.b32[0]);
   assert(tmp == COOL_OBJ_MAGIC);
   return obj->mag;
 }
 
 static uint16_t obj_read_major(obj_obj *obj) {
-  R16(&obj->maj);
+  BOOOM;
+  //R16(&obj->maj);
   //uint16_t tmp = ((uint16_t)obj->buffer[obj->rw_pos - 2]);
   assert(obj->maj == COOL_OBJ_MAJOR);
   return obj->maj;
 }
 
 static uint16_t obj_write_major(obj_obj *obj) {
+  BOOOM;
   //printf("major=%u\n", (*(uint16_t*)obj->buffer[obj->rw_pos]));
-  W16(&obj->maj);
+  //W16(&obj->maj);
   //assert((*(uint32_t*)obj->buffer) == COOL_obj_MAGIC);
   uint16_t tmp = ((uint16_t)obj->buf->mem.b8[obj->rw_pos - 2]);
   assert(tmp == COOL_OBJ_MAJOR);
@@ -519,13 +473,13 @@ static uint16_t obj_write_major(obj_obj *obj) {
 }
 
 static uint16_t obj_read_minor(obj_obj *obj) {
-  R16(&obj->min);
+  BOOOM;//R16(&obj->min);
   assert(obj->min == COOL_OBJ_MINOR);
   return obj->min;
 }
 
 static uint16_t obj_write_minor(obj_obj *obj) {
-  W16(&obj->min);
+  BOOOM;//  W16(&obj->min);
   uint16_t tmp = ((uint16_t)obj->buf->mem.b8[obj->rw_pos - 2]);
   assert(tmp == COOL_OBJ_MINOR);
   return obj->min;
@@ -575,3 +529,57 @@ static uint16_t obj_write_methods(obj_obj *obj) {
 static void obj_write_buff_to_file(obj_obj *obj) {
   fwrite(obj->buf->mem.b8, 1, obj->rw_pos, obj->fh);
 }
+
+
+/*
+
+ static size_t obj_memcpy(obj_obj *obj, void *sink, void *source, size_t size) {
+ BOOOM
+ uint8_t *dest = (uint8_t*)sink;
+ uint8_t *src  = (uint8_t*)source;
+ memcpy(dest, src, size);
+ return size;
+ }
+
+ */
+
+/*
+
+
+ static void obj_addMethod(CoolObj *c_obj, CoolMethod * meth) {
+ assert(1 == 2);
+ COOL_M_CAST_OBJ;
+ assert(meth != NULL);
+
+ size_t sig_len = strnlen(meth->sig, COOL_MAX_OBJECT_METHOD_SIGNATURE + 1);
+ //printf("sig_len=%zu\n", sig_len);
+ assert(sig_len <= COOL_MAX_OBJECT_METHOD_SIGNATURE);
+
+ size_t name_len = strcspn(meth->sig, ":");
+
+ //printf("s obj_method=%zu\n", sizeof(obj_method));
+ obj_method *m  = malloc(sizeof(obj_method));
+ m->name        = malloc(name_len + 1);
+ m->sig         = malloc(sig_len + 1);
+ m->bcode       = malloc(sizeof(CInst) * meth->inst_cnt);
+ m->inst_cnt    = meth->inst_cnt;
+ assert(m);
+ assert(m->name);
+ assert(m->sig);
+ assert(m->inst_cnt);
+
+ //assert(m->inst_cnt == 3);
+ memcpy(m->name, meth->sig, name_len);
+ memcpy(m->sig , meth->sig, sig_len);
+ m->name[name_len] = '\0';
+ m->sig[sig_len]   = '\0';
+
+ size_t i = 0;
+ for(i = 0l; i < meth->inst_cnt; i++) {
+ m->bcode[i] = meth->bcode[i];
+ }
+ obj->method_que->ops->enque(obj->method_que, m);
+ return;
+ }
+*/
+

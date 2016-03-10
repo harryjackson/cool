@@ -4,8 +4,22 @@ message("CMAKE_CURRENT_SOURCE_DIR == ${CMAKE_CURRENT_SOURCE_DIR}")
 #----------------  COOL ----------------------
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cool/)
 source_group(VM 
-  REGULAR_EXPRESSION ".*vm.*" 
-  REGULAR_EXPRESSION ".*asm.*")
+  FILES 
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_asm.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_asm.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_asm.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_io.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_limits.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_obj.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_asm.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_io.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/tests/cool_asm_test.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_types.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_bcode.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_obj.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_vm.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_utils.c
+  REGULAR_EXPRESSION ".*vm.*") 
 
 set(cool_utils_srcs
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_utils.h

@@ -122,21 +122,12 @@ struct stk_frame {
 
 typedef struct CoolVMOps {
   void         (* main    )(CoolVM *vm, CoolObj *class);
-  void         (* exec    )(CoolVM *vm, CInst bytecode[], uint32_t inst_count);
-//  void       * (* pop     )(CoolVM *vm);
-//  void         (* push    )(CoolVM *vm, void *ptr);
-//  void         (* call    )(CoolVM *vm);
-//  void         (* add     )(CoolVM *vm);
+  void         (* load    )(CoolVM *vm, CoolObj *class);
+  void         (* start   )(CoolVM *vm);
   uint64_t     (* ops     )(CoolVM *vm);
-  Creg       * (* getConst)(CoolVM *vm, size_t index);
   vm_debug   * (* debug   )(CoolVM *vm);
 } CoolVMOps;
 
-/*
- The VM is not static, to be concurrent
- does it need to be dynamically allocated or
- does the stack need to be dynamic?
- */
 struct CoolVM {
   void      * obj;
   CoolVMOps * ops;

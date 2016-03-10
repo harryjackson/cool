@@ -179,7 +179,6 @@ typedef struct CoolObjOps {
   uint16_t         (* minor     )(CoolObj *f);
   uint16_t         (* cp_count  )(CoolObj *f);
   const char     * (* toString  )(CoolObj *f);
-  void             (* addMethod )(CoolObj *f, CoolMethod * meth);
   void             (* addFunc   )(CoolObj *f, CoolObjFunc * func, CoolQueue *q);
   void             (* addConsts )(CoolObj *f, CoolQueue *q);
   CoolObjFunc    * (* newFunc   )(CoolObj *f, const char *sig);

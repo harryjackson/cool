@@ -15,6 +15,14 @@ without getting bogged down in things like performance, perfect code, perfect
 api's etc. I write basic tests for almost everying and use valgrind and Xcodes
 leak detector but that's it. This is not production quality C.
 
+I'll be using a lot of pseudo code for the Hypothetical Language frontend 
+language. Nothing in the FE is in concrete until I know what I have in the 
+VM.
+
+I use the terms Class/Object etc interchangeably. This does not mean the
+language is pure OO, I like OO but I also like first class functions and 
+closures. When I load a class I mean the file that contains the code.  
+
 ## Aims
 
 The aim of this is education at this point. In particular I want to learn more 
@@ -162,7 +170,7 @@ Some other features that would be great to add
 10. Error handling? Open question. I think this is probably the single hardest
     thing to get right because there is no correct way to do it. Exceptions
     suck, passing errors around suck.
-11. JIT go native. Compiling to C would be where I'd start and then work 
+11. JIT or go native. Compiling to C would be where I'd start and then work 
     from there.
 
 Garbage collection is tough and I think I could spend years on it. I don't
@@ -243,10 +251,26 @@ the frame might be a PITA.
 
 
 ## Class Loader 
+
 The class loaded is where we load each file into the Machine. When the class
 gets loaded it gets an ID etc. Execution starts at at the method in Casm with
-the following signature main:(IS)(I). I've not figured out how to call external
-objects yet.
+the following signature main:(IS)(I). I've not figured out how I want to call
+external objects yet.
+
+
+As a start I'll implement the following 
+
+````
+Foo foo := Foo();
+````
+
+The class loader will search for a "./Foo.asm" in the same directory where the
+VM found it's main function.
+
+Note, it will not have a class path ie some other location above where the main
+directory is. Anything up the tree will need to have it's own VM and all
+communication between these will be message passing not direct calls.  This
+will force me to implement message passing early.
 
 ## Scoping
 
@@ -378,6 +402,11 @@ file := try:File("/badfilepath.txt").(/dev/null);
 ## Language Design Reading
 
 Where I find interesting articles I'll drop them in here...
+
+[Simple article on Go's scheduler](https://morsmachine.dk/go-scheduler)
+[Go's scheduler implementation, might be out of date](https://docs.google.com/document/d/1TTj4T2JO42uD5ID9e89oa0sLKhJYD0Y_kqxDv3I3XMw/edit)
+[Paper on the Go Sheduler](http://www.cs.columbia.edu/~aho/cs6998/reports/12-12-11_DeshpandeSponslerWeiss_GO.pdf)
+
 
 [Great synospis of the different C++ compilers etc.](http://www.agner.org/optimize/calling_conventions.pdf)
 

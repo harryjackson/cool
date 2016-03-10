@@ -1,6 +1,6 @@
 //#define NDEBUG 1
 #include "cool/cool_vm.h"
-#include "cool_utils.h"
+#include "cool/cool_utils.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

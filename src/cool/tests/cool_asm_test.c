@@ -92,7 +92,9 @@ static void run_tests(asm_test t[], size_t num_tests) {
 
     CoolVM *vm = cool_vm_new();
 
-    vm->ops->main(vm, class);
+    vm->ops->load(vm, class);
+    vm->ops->start(vm);
+
     size_t ops_run = vm->ops->ops(vm);
     double opspersec = clock_ops_persec(start, ops_run);
     printf("%0.3f ops per second op\n", opspersec);
@@ -111,53 +113,7 @@ int main() {
   size_t num_tests = sizeof(basic_math_tests)/sizeof(basic_math_tests[0]);
   run_tests(basic_math_tests, num_tests);
 
-
   num_tests = sizeof(basic_call_func_tests)/sizeof(basic_call_func_tests[0]);
   run_tests(basic_call_func_tests, num_tests);
-
-  /*
-  size_t i = 0;
-  for(i = 0; i < no_tests ; i++) {
-    if(tests[i].run == 0) {
-      continue;
-    }
-    char *fname = tests[i].asmfile;
-    size_t fsize = cool_io_file_size(fname);
-    assert(fsize > 0);
-    CBuff * fbuf = malloc(sizeof(CBuff));
-
-    fbuf->size   = fsize;
-    fbuf->mem.b8 = malloc(fsize);
-
-    assert(fbuf->size > 0);
-    cool_io_file_slurp(fname, fbuf);
-    double start = clock_start();
-
-
-    CoolObj *class = cool_obj_new();
-    CoolASM *casm = cool_asm_new(class);
-    casm->ops->parse(casm, fbuf, "Test1");
-
-
-    double bytespersec = clock_ops_persec(start, fsize);
-    printf("%0.3f ops per second op\n", bytespersec);
-
-    cool_asm_delete(casm);
-
-    free(fbuf->mem.b8);
-    free(fbuf);
-    start = clock_start();
-
-    CoolVM *vm = cool_vm_new();
-
-    vm->ops->main(vm, class);
-    size_t ops_run = vm->ops->ops(vm);
-    double opspersec = clock_ops_persec(start, ops_run);
-    printf("%0.3f ops per second op\n", opspersec);
-    
-    cool_obj_delete(class);
-    cool_vm_delete(vm);
-  }
- */
   return 0;
 }
