@@ -11,11 +11,6 @@ def:globals:8:{
   db:5:I:1
 }
 .methods
-
-
-
-
-
 main:(IS)(I) {
   ldk  ,   r2,  $2      ; load 2.0
   ldk  ,   r3,  $3      ; load 3.0    

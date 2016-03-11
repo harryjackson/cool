@@ -161,8 +161,8 @@ CoolObj * cool_obj_new() {
   obj->method_que  = cool_queue_new();
   obj->func_q      = cool_queue_new();
   obj->buff_size   = COOL_MAX_OBJECT_FILE_SIZE;
-  obj->buf         = malloc(sizeof(CBuff));
-  obj->buf->mem.b8 = malloc(obj->buff_size);
+  obj->buf         = calloc(1, sizeof(CBuff));
+  obj->buf->mem.b8 = calloc(1, obj->buff_size);
 
   return imp;
 }

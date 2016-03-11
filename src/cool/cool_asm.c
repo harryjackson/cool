@@ -620,8 +620,8 @@ static void parse_global_constants(asm_obj *obj) {
     free(t);
     t = NULL;
 
-    //printf("%zu c=%c\n",c, obj->buf->mem.b8[t->pos]);
-    //printf("%zu c=%c\n",c, obj->buf->mem.b8[t->pos + 1]);
+    //printf("%zu c=%c\n",c, obj->buf->mem.b8[T->pos]);
+    //printf("%zu c=%c\n",c, obj->buf->mem.b8[T->pos + 1]);
 
     assert(obj->buf->mem.b8[T.pos]     == 'd');
     assert(obj->buf->mem.b8[T.pos + 1] == 'b');
@@ -632,12 +632,15 @@ static void parse_global_constants(asm_obj *obj) {
     T = *t;
     free(t);
     uint8_t type =  obj->buf->mem.b8[T.pos];
-    //printf("c=%c\n",obj->buf->mem.b8[t->pos]);
-    //printf("c=%c\n",obj->buf->mem.b8[t->pos + 1]);
+    //printf("c=%c\n",obj->buf->mem.b8[T->pos]);
+    //printf("c=%c\n",obj->buf->mem.b8[T->pos + 1]);
 
     tok_expect(obj, T_COLON);
     switch(type) {
+      case 'L': ;;
       case 'S': {
+
+        //assert(NULL);
         t = tok_next(obj);
         T = *t;
         free(t);
@@ -645,7 +648,7 @@ static void parse_global_constants(asm_obj *obj) {
 
         assert(T.id == T_DQ_STRING);
         Creg *reg = cool_creg_new(CoolStringId);
-        assert(obj->buf->mem.b8[T.pos] == '"');
+        assert(obj->buf->mem.b8[T.pos]             == '"');
         assert(obj->buf->mem.b8[T.pos + T.len - 1] == '"');
         reg->u.ptr = malloc(T.len);
         /**
@@ -684,8 +687,8 @@ static void parse_global_constants(asm_obj *obj) {
         obj->const_q->ops->enque(obj->const_q, reg);
       };break;
       case 'O':{
-        add_constant_to_file(obj, type);
         assert(1 == 2);
+        add_constant_to_file(obj, type);
       };break;
       default: abort();
     }

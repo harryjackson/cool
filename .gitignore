@@ -1,3 +1,4 @@
+*.beam
 build/*
 docs/dox/*
 *a.out

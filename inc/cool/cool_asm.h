@@ -20,12 +20,6 @@ typedef struct CoolASM CoolASM;
 
 typedef struct CoolASMOps {
   CoolObj  * (*parse   )(CoolASM * c_asm, CBuff * buf, const char *class_name);
-//  size_t * (*major   )(CoolASM * c_asm);
-//  size_t * (*minor   )(CoolASM * c_asm);
-//  CFunc  * (*newFunc )(CoolASM * c_asm, const char *line);
-//  CConst * (*newConst)(CoolASM * c_asm, const char *line);
-//  CInst  * (*newInst )(CoolASM * c_asm, const char *line);
-//  void     (*toString)(CoolASM * c_asm);
 } CoolASMOps;
 
 struct CoolASM {

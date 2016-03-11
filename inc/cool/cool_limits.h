@@ -68,7 +68,25 @@
 /*
  VM Limits...
  */
-/** 
+
+/**
+ Max OS threads that can be created.
+ */
+#define COOL_MAX_OS_THREADS 16
+
+/**
+ How many registers does out default VM have?
+ */
+#define COOL_VM_REG_COUNT 64
+
+/**
+ More importantly how many registers in the stack frame. Please see
+ COOL_MAX_VM_SAVED_STACK_FRAME_ARGS
+ */
+#define COOL_VM_STACK_REG_COUNT 16
+
+
+/**
  When we load classes if we need more memory how many do 
  we allocate? Loding can happen while running so we need
  some sort of way to dynammically increase memory ie we 

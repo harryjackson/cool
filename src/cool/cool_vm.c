@@ -1,6 +1,6 @@
 /** 
  \file
- This is where the action happens in the VM
+ This is where the action happens
 */
 
 #include "cool/cool_vm.h"
@@ -11,19 +11,18 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-//#define C_INLINE_OPS 1
-#undef  C_INLINE_OPS
+#define C_INLINE_OPS 1
+//d#undef  C_INLINE_OPS
 
 #ifdef  C_INLINE_OPS
-#define C_INLINE inline
+#define C_INLINE static inline
 #else
-#define C_INLINE
+#define C_INLINE static
 #endif
 
 //#define SPINCHECK assert(v->spin++ < 2050)
 //#define COOL_M_HALT_VM 0xFFFFFF
 #define PRINT_OPS 1
-
 //#undef PRINT_OPS
 
 #ifdef  PRINT_OPS
@@ -34,21 +33,9 @@
 #define print_in(f)     (void)0
 #endif
 
-
-
 #define COOL_M_CAST_VM                \
 vm_obj * obj = (vm_obj*)c_vm->obj;
-/*
- typedef union ureg {
- reg_bytes bytes;
- reg_words words;
- void *pp;
- int64_t  si;
- uint64_t ui;
- char     c;
- double   d;
- } ureg;
- */
+
 #define INST    uint8_t  in    = f->bcode[f->pc].arr[0]
 #define REG(rN) uint8_t  r##rN = f->bcode[f->pc].arr[rN]
 #define REGA    uint8_t  ra    = f->bcode[f->pc].arr[1]
@@ -76,16 +63,69 @@ static uint64_t op_counters[256] = {0};
  */
 static ssize_t  func_jump[COOL_MAX_OBJECT_METHOD_COUNT] = {0};
 
-/*
- The Class Object struct is share betwee this object and the VM
+/**
+ The Class Object struct is share between this object and the VM
  */
 #include "cool/cool_obj_class.h"
 
-#define REG_COUNT 256
+/**
+ The class_id type is the index into the class_loader. An index of -1 indicates a 
+ problem ie if loader->main == -1 then there is currently no main class loaded.
+ */
+typedef ssize_t  class_id;
+typedef ssize_t  func_id;
+typedef uint64_t pcounter;
+
+typedef uint64_t green_id;
+typedef uint64_t pid;
+
+
+/** \typedef Class
+ \var pc Program counter into the local bytecode
+ \var bcode local bytecode
+*/
+typedef struct Class {
+  class_id    cid;
+  vm_obj    * p_vm;
+  size_t      con_count;
+  Creg      * constants;
+  func_id     funcs[COOL_MAX_OBJECT_METHOD_COUNT];
+  pcounter    pc;
+  size_t      inst_count;
+  CInst     * bcode;
+  class_obj   class;// Original class file
+} Class;
+
+typedef struct Main {
+  pcounter  pc;
+  class_id  cid;
+} Main;
+
+/*! \typedef class_loader
+
+ \brief The Class Loader is where all classes that get loaded are kept. At the moment
+ there's one class loader in the VM. Efficiently finding classes is going to be 
+ an issue when loading other classes. 
+ 
+ Please see main docs for thoughts on the class loader
+ */
+typedef struct class_loader {
+  Main        main;
+  /**
+   What the next class position to load into */
+  size_t      pos;
+  /**
+   How many classes have been loaded */
+  size_t      count;
+  /** Classes array */
+  Class     * classes;
+} class_loader;
 
 /**
- The vm_os represents the OS is an OS thread
- in our terms.
+ Please see the main page for more info on this. In particular read up on Go's
+ scheduler.
+
+ The vm_os represents the OS is an OS thread in our terms.
  The vm_proc object represents a CPU (Processor)
  The vm_green represents a thread. This is a green
  thread that has it's own stack etc.
@@ -99,27 +139,37 @@ struct vm_os {
   vm_proc   * proc; // Current process
 };
 struct vm_proc {
-  uint64_t  * pid;
-  /**
-   Queue of green threads ie our routines */
+  pid         pid;
+  uint32_t    state;// Blocked or not
+  /** Queue of green threads ie our routines */
   CoolQueue * que;
   vm_green  * green; // Current executing green thread
-  vm_proc   * proc; // Array of N processors
 };
 struct vm_green {
-  uint64_t    gid;
+  green_id    gid;
+  vm_obj    * vm;
+  pcounter    ret;
   CoolStack * frames; // Stack frames for gthread
   stk_frame * sf;     // Current stack frame
+  CInst     * bcode;
+
 };
 
 /**
  This is the main struct for the virtual machine. The VM 
  manages threads and contains all the classes it needs to 
  work done.
-
  */
 typedef struct vm_obj {
-  vm_os     * os; //Array of N OS threads
+  /**
+   There are two queues the scheduler works from, the proc queue and the 
+   green thread que that resides in the proc
+   */
+  CoolQueue * proc_q;
+  /**
+   Array of N OS threads. Stack frames belong to
+   */
+  vm_os     os[COOL_MAX_OS_THREADS];
   /**
    StackFrame stack. Note, an array of these with a scheduler and
    we have green threads. If we have an OS thread per array we have a
@@ -142,19 +192,19 @@ typedef struct vm_obj {
    Program Counter: This be moved into the head of the stack to make 
    threading possible in the VM */
   u32         pc;
-  /** 
-   What the next class position to load into */
-  size_t      classes_pos;
-  /** 
-   How many classes have been loaded */
-  size_t      classes_cnt;
-  /** 
-   Classes array */
-  class_obj * classes;
+
+  /**
+   The class loader is sufficiently complex to get it's own new and delete methods.
+   */
+  class_loader *ldr;
+
+  size_t      next_oid;
+  size_t      next_pid;
+  size_t      next_gid;
 
   size_t      const_count;
   Creg      * constants;
-  Creg        r[REG_COUNT];
+  Creg        r[COOL_VM_REG_COUNT];
   size_t      inst_count;
   CInst     * bcode;
   vm_debug    dbg;
@@ -176,39 +226,37 @@ static char *  op_jump_str[64] = {
 #include "cool/cool_vm_ops.h"
 };
 
-/*
-static void (*op_tab2[])(vm_obj *v) = {};
-*/
+static void print_instruction(stk_frame *f);
+
+
+
+static vm_proc *   vm_proc_new(vm_obj *obj);
+static void        vm_proc_delete(vm_proc *p);
+
+static vm_green *  vm_green_new(vm_obj *obj, Class *class);
+static void        vm_green_delete(vm_green *g);
+
+static void green_stk_frame_new(vm_green * g, uint64_t callee_i_start, uint64_t ret);
 
 static void stk_frame_new(vm_obj * v, uint64_t pc, uint64_t ret);
 static void stk_frame_delete(stk_frame *f);
 static void frame_save(stk_frame *f);
 
-static void     print_instruction(stk_frame *f);
+static class_loader * class_loader_new();
+static void           class_loader_delete(class_loader *ldr);
 
-/**
- The vm_main method is the old one
- */
-static void       vm_main(CoolVM *c_vm, CoolObj *class);
-
-/**
- These two functions are the new ones. Classes will be loaded
- then the VM started
- */
+/** CM API */
 static void       vm_start(CoolVM *c_vm);
 static void       vm_class_loader(CoolVM *c_vm, CoolObj *class);
 static uint64_t   vm_ops(CoolVM *c_vm);
 static vm_debug * vm_dbg(CoolVM *c_vm);
 
 static CoolVMOps OPS = {
-  &vm_main,
   &vm_class_loader,
   &vm_start,
   &vm_ops,
   &vm_dbg,
 };
-
-
 
 CoolVM * cool_vm_new() {
   CoolVM    * imp;
@@ -217,29 +265,29 @@ CoolVM * cool_vm_new() {
 
   imp = calloc(1, sizeof(*imp));
   obj = calloc(1, sizeof(*obj));
-  obj->classes_cnt = 0;
-  obj->classes_pos = 0;
-  obj->classes     = calloc(COOL_MAX_VM_CLASSES_CALLOC, sizeof(class_obj));
 
   imp->obj  = obj;
   imp->ops  = &OPS;
 
+  obj->proc_q     = cool_queue_new();
   obj->frames     = cool_stack_new();
+  obj->ldr        = class_loader_new();
+
   obj->spin       = 0;
   obj->pc         = 0;
   obj->inst_count = 0;
   obj->bcode      = NULL;
-  //obj->stk        = cool_stack_new();
+
   obj->dbg.frame_deletes = 0;
   obj->dbg.frame_news    = 0;
+
   stk_frame_new(obj, 0, 3);
   size_t i = 0;
 
   for(i = 0 ; i < COOL_MAX_OBJECT_METHOD_COUNT; i++) {
     func_jump[i] = -1;
-    //printf("%zd\n", func_jump[i]);
   }
-  for (i = 0; i < REG_COUNT; i++) {
+  for (i = 0; i < COOL_VM_REG_COUNT; i++) {
     obj->r[i].t = 0;
     obj->r[i].u.words.w0 = 0;
     obj->r[i].u.words.w0 = 0;
@@ -248,23 +296,22 @@ CoolVM * cool_vm_new() {
   return (CoolVM*)imp;
 }
 
-/**
- \todo testing todos... We need to cater for the different types that
- may need to be free'd here.
- */
 void cool_vm_delete(CoolVM *c_vm) {
   COOL_M_CAST_VM;
 
-  //cool_stack_delete(obj->stk);
-
-  size_t i = 0;
-
   free(obj->bcode);
-  free(obj->classes);
   free(obj->constants);
   assert(obj->frames->ops->len(obj->frames) == 0);
+
+  class_loader_delete(obj->ldr);
   stk_frame_delete(obj->sf);
   cool_stack_delete(obj->frames);
+  while(obj->proc_q->ops->length(obj->proc_q) > 0) {
+    vm_proc * p = obj->proc_q->ops->pop(obj->proc_q);
+    vm_proc_delete(p);
+  }
+  cool_queue_delete(obj->proc_q);
+
   free(c_vm->obj);
   free(c_vm);
 }
@@ -286,15 +333,103 @@ void cool_creg_delete(Creg *r) {
   free(r);
 }
 
+static class_loader * class_loader_new() {
+  class_loader *ldr = calloc(1, sizeof(class_loader));
+  ldr->main.cid     = -1;
+  ldr->main.pc      = 0;
+  ldr->count = 0;
+  ldr->count = 0;
+  ldr->classes     = calloc(COOL_MAX_VM_CLASSES_CALLOC, sizeof(Class));
+  return ldr;
+}
+
+static void class_loader_delete(class_loader *ldr) {
+  size_t i = ldr->count;
+  for(i = 0; i < ldr->count; i++) {
+    Class class = ldr->classes[i];
+    free(class.bcode);
+    free(class.constants);
+  }
+  free(ldr->classes);
+  free(ldr);
+}
+
+static vm_proc * vm_proc_new(vm_obj *obj) {
+  vm_proc * proc = calloc(1, sizeof(vm_proc));
+  proc->pid      = obj->next_pid++;
+  proc->que      = cool_queue_new();
+  proc->green    = NULL;
+  return proc;
+}
+
+static void vm_proc_delete(vm_proc *p) {
+  while(p->que->ops->length(p->que) > 0) {
+    vm_green * g = p->que->ops->pop(p->que);
+    vm_green_delete(g);
+  }
+  cool_queue_delete(p->que);
+  free(p);
+  p = NULL;
+}
+
+static vm_green * vm_green_new(vm_obj *obj, Class *class) {
+  vm_green * g  = calloc(1, sizeof(vm_green));
+  g->frames     = cool_stack_new();
+  g->bcode      = class->bcode;
+  green_stk_frame_new(g, class->pc, g->ret);
+  return g;
+}
+
+static void vm_green_delete(vm_green *g) {
+  while(g->frames->ops->len(g->frames) > 0) {
+    stk_frame * f = g->frames->ops->pop(g->frames);
+    stk_frame_delete(f);
+  }
+  if(g->sf) {
+    free(g->sf);
+  }
+  cool_stack_delete(g->frames);
+  free(g);
+}
+
+
 /**
  The class loader will eventually need to be able to run 
- not just before we start the VM but during opeartions as 
- it created or encounters new classes during execution ie
+ not just before we start the VM but as it encounters new 
+ classes during execution. The class loader should really be it's
+ own object and hold all references to the objects it loads. I 
+ think this how Java does it. For now I'll make it it's own 
+ struct and if there's a benefit to adding an API around it I'll 
+ move it.
  
  Multiple "main signatures" will produce a warning for now.
- Eventually it should produce a failure. A method with a
- process method should have it's own process with it's own
- VM.
+ It should fail or we can use it to indicate that we want a new 
+ process. I'd prefer fail because then there's not risk of 
+ someome making the mistake where they incorrectly add to main 
+ functions to their file. To indicate a new process we should
+ uise an explicit process method.
+
+ The vm needs to load multiple object files into it and this
+ means we need to have a data structure to store each file...
+ ideally this would be some sort of array for fast lookup. The
+ current implementation uses obj->bcode which means we're
+ limited to 1 object file at this time. We should eventually have
+ obj->bcode[oid] where oid == class that was loaded into the VM.
+ The VM should maintain a class list so it can determine name
+ conflicts etc before loading a new class ie if it's already
+ been loaded we should either bomb with an error/ warning or???
+
+ obj->classes will containt the array of loaded classes.
+
+ It's interesting to note that the constant pool in Java starts at
+ index 1. I did start this one at 0 but it's actually a PITA to
+ program it like that so I'm adding a dummy register at 0.
+
+ Strings: I like the idea of an internal constant table for the
+ entire VM ie we load the class and any constants already found in
+ the main constant pool are reused. This is used in .NET and called
+ string interning, there's not reason not to use the same thing
+ for all constants.
 */
 C_INLINE
 void vm_class_loader(CoolVM *c_vm, CoolObj * cool_obj) {
@@ -302,8 +437,10 @@ void vm_class_loader(CoolVM *c_vm, CoolObj * cool_obj) {
   COOL_M_CAST_VM;
   assert(obj->sf->vm);
 
+  obj->ldr->count++;
+
   class_obj *c_o         = cool_obj->obj;
-  assert(c_o->mag        = COOL_OBJ_MAGIC);
+  assert(c_o->mag = COOL_OBJ_MAGIC);
 
   size_t  inst_count             = 0;
   ssize_t main_start_instruction = -1;
@@ -324,116 +461,120 @@ void vm_class_loader(CoolVM *c_vm, CoolObj * cool_obj) {
    We also add the instruction number where this function
    starts here so we can call it ie call(instruction_number)
    */
-  obj->bcode = malloc(inst_count * sizeof(CInst));
+  Class *class = &obj->ldr->classes[obj->ldr->pos];
+  class->cid   = obj->ldr->pos++;
+
+  class->bcode = calloc(1, inst_count * sizeof(CInst));
+  obj->bcode   = calloc(1, inst_count * sizeof(CInst));
+
   size_t main_sig_size = strlen(COOL_MAIN_METHOD_SIGNATURE);
   size_t instruction = 0;
   for(i = 0; i < c_o->func_count; i++) {
-    func_obj *f_obj = c_o->func_array[i].obj;
-    //printf("%zu , sig== %s\n", i, f_obj->sig);
+    func_obj *f_obj = c_o->func_array[i].obj;//printf("%zu , sig== %s\n", i, f_obj->sig);
     if(main_sig_size == strlen(f_obj->sig)) {
-      /**
-       Check for main signature and if so mark it as such because
-       execution will start here
-       */
-      //printf("sig== %s\n", f_obj->sig);
+      /** Check for main signature and if so mark it as such because
+       execution will start here */
       if(memcmp(f_obj->sig, COOL_MAIN_METHOD_SIGNATURE, main_sig_size) == 0) {
-        /**
-         Should we accept multiple main methods where main
-         really means start new process/thread/event etc?
-         */
         assert(main_start_instruction == -1);
+        assert(obj->ldr->main.cid == -1); //Only one main function allowed per loader
+        obj->ldr->main.pc      = instruction;
+        obj->ldr->main.cid     = class->cid;
         main_start_instruction = instruction;
+        obj->pc          = main_start_instruction;
+        obj->sf->pc      = main_start_instruction;
+        obj->sf->base_pc = main_start_instruction;
       }
     }
-    f_obj->i_start       = instruction;
-    func_jump[f_obj->id] = instruction;
-
+    func_jump[f_obj->id]    = instruction;
+    class->funcs[f_obj->id] = instruction;
     size_t n = 0;
     for(n = 0; n < f_obj->i_count; n++) {
       CInst in;
       in.i32 = f_obj->inst[n].i32;
-      /*      printf("%2zu: %5s, %3d, %3d %3d\n",
-       instruction,
-       op_jump_str[in.arr[0]],
-       in.arr[1], in.arr[2], in.arr[3]); */
-      obj->bcode[instruction].i32 = f_obj->inst[n].i32;
+      class->bcode[instruction].i32 = f_obj->inst[n].i32;
+      obj->bcode[instruction].i32  = f_obj->inst[n].i32;
       instruction++;
     }
   }
-  assert(main_start_instruction != -1);
 
+  assert(main_start_instruction != -1);
+  assert(obj->ldr->main.cid != -1);
 
   /** Allocate contant pool array and load constants */
   obj->const_count = c_o->const_regs_count;
+  class->con_count = c_o->const_regs_count;
+
   obj->constants   = calloc(1, sizeof(Creg) * (obj->const_count + 1));
+  class->constants = calloc(1, sizeof(Creg) * (class->con_count + 1));
+
   assert(obj->constants);
-  obj->constants[0].t    = CoolNillId;
-  obj->constants[0].u.si = 0;
+  assert(class->constants);
+
+  obj->constants[0].t      = CoolNillId;
+  obj->constants[0].u.si   = 0;
+  class->constants[0].t    = CoolNillId;
+  class->constants[0].u.si = 0;
+
   size_t idx = 1;
   for(i = 0; i < obj->const_count; i++) {
-
+    class->constants[idx] = c_o->const_regs[i];
     obj->constants[idx++] = c_o->const_regs[i];
-    /*
-     if(c_o->const_regs[i].t == CoolStringId) {
-     printf("%zu str:%s\n", idx, obj->constants[idx].u.str);
-     }
-     else if(c_o->const_regs[i].t == CoolIntegerId) {
-     printf("%zu lld:%lld\n", idx, obj->constants[idx].u.si);
-     }
-     else if(c_o->const_regs[i].t == CoolDoubleId) {
-     printf("%zu dub:%f\n", idx, obj->constants[idx].u.d);
-     }
-     else if(c_o->const_regs[i].t == CoolObjectId) {
-     printf("object\n");
-     }*/
-
   }
-
-  obj->inst_count = inst_count;
-  obj->sf->halt   = 0;
-  obj->sf->bcode  = obj->bcode;
-
-  obj->pc          = main_start_instruction;
-  obj->sf->pc      = obj->pc;
-  obj->sf->base_pc = obj->pc;
 }
-
-/**
- This is the kickoff routine and starts the interpreter.
-
- The vm needs to load multiple object files into it and this
- means we need to have a data structure to store each file...
- ideally this would be some sort of array for fast lookup. The
- current implementation uses obj->bcode which means we are
- limited to 1 object file at this time. We should eventually have
- obj->bcode[oid] where oid == class that was loaded into the VM.
- The VM should maintain a class list so it can determine name
- conflicts etc before loading a new class ie if it's already
- been loaded we should either bomb with an error/ warning or???
-
- obj->classes will containt the array of loaded classes.
-
- It's interesting to note that the constant pool in Java starts at
- index 1. I did start this one at 0 but it's actually a PITA to
- program it like that si I'm adding a dummy register at 0.
-
- Strings: I like the idea of an internal constant table for the
- entire VM ie we load the class and any constants already found in
- the main constant pool are reused. This is used in .NET and called
- string interning, there's not reason not to use the same thing
- for all constants.
- */
 
 static void vm_start(CoolVM *c_vm) {
   COOL_M_CAST_VM;
   size_t calls = 0;
-  static const size_t call_limit = 20500;
+
+  obj->sf->bcode   = obj->bcode;
+
+  Main main   = obj->ldr->main;
+  Class class = obj->ldr->classes[main.cid];
+  assert(main.pc == obj->sf->pc);
+  class.pc = main.pc;
+
+  vm_green * g = vm_green_new(obj, &class);
+  vm_proc  * p = vm_proc_new(obj);
+
+  p->que->ops->enque(p->que, g);
+  obj->proc_q->ops->enque(obj->proc_q, p);
+
+  //push p onto scheduler que.
+
   while(obj->sf->halt == 0) {
-    //print_op(<#op#>, <#pc#>)//printf("pc=%llu\n", obj->sf->pc);
+    uint8_t in = obj->sf->bcode[obj->sf->pc].arr[0];
+    op_jump[obj->sf->bcode[obj->sf->pc].arr[0]](obj->sf);
+  }
+  obj->pc = 0;
+  obj->sf->pc = 0;
+}
+
+
+/**
+ This is the kickoff routine and starts the interpreter.
+ 
+ This routine should not run the interpreter loop, it should be 
+ handling the process and thread scheduler. Basically it needs to 
+ 
+ 1. Load Main class
+ 2. Schedule a process with starting point set to main.pc
+ 3. Push onto que.
+
+ \todo Leaf Functions: We could edit each OP_FUNCTION to make it
+ a leaf function by performing the tests in the dispatch loop, this
+ might give a speed boost.
+ */
+/*
+static void vm_start_working(CoolVM *c_vm) {
+  COOL_M_CAST_VM;
+  size_t calls = 0;
+  static const size_t call_limit = 20500;
+  obj->sf->bcode   = obj->bcode;
+
+  while(obj->sf->halt == 0) {
     op_counters[obj->sf->bcode[obj->sf->pc].arr[0]]++;
     obj->spin++;
     uint8_t in = obj->sf->bcode[obj->sf->pc].arr[0];
-    //printf("in=%d\n", in);//usleep(10000);
     if(obj->sf->bcode[obj->sf->pc].arr[0] == OP_CALL) {
       calls++;
       if(calls > call_limit) {
@@ -446,11 +587,12 @@ static void vm_start(CoolVM *c_vm) {
   obj->pc = 0;
   obj->sf->pc = 0;
 }
+ */
 
 
 #define SAVE_REG_BASE 0
 C_INLINE
-static void frame_restore(stk_frame *f) {
+void frame_restore(stk_frame *f) {
   f->r[1] = f->save[SAVE_REG_BASE + 0];
   f->r[2] = f->save[SAVE_REG_BASE + 1];
   f->r[3] = f->save[SAVE_REG_BASE + 2];
@@ -462,7 +604,7 @@ static void frame_restore(stk_frame *f) {
 }
 
 C_INLINE
-static void frame_save(stk_frame *f) {
+void frame_save(stk_frame *f) {
   f->save[SAVE_REG_BASE + 0] = f->r[1];
   f->save[SAVE_REG_BASE + 1] = f->r[2];
   f->save[SAVE_REG_BASE + 2] = f->r[3];
@@ -473,8 +615,14 @@ static void frame_save(stk_frame *f) {
   f->save[SAVE_REG_BASE + 7] = f->r[8];
 }
 
+
+/**
+ \todo Performance: We're falling through on both these switch statements.
+ We could use a goto and avoid both switch statments altogether.
+ If at -O3 it proves to be faster we'll make the change.
+ */
 C_INLINE
-static void frame_set_args(stk_frame *old, stk_frame *new, uint8_t argc) {
+void frame_set_args(stk_frame *old, stk_frame *new, uint8_t argc) {
   assert(argc == 1);
   switch(argc) {
     case 8: new->args[8] = old->args[8];
@@ -506,13 +654,15 @@ static vm_debug * vm_dbg(CoolVM *c_vm) {
   return &obj->dbg;
 }
 
+
+
 /**
  Deleting the stack frame is tricky because the frame about to
  be deleted holds a reference to the VM. Once the frame has been free'd 
  the reference in vm->sf->vm == NULL.
 */
 C_INLINE
-static void stk_frame_delete(stk_frame *f) {
+void stk_frame_delete(stk_frame *f) {
   //if(f->vm == NULL) return;
   assert(f->vm);
   ((vm_obj*)f->vm)->dbg.frame_deletes++;
@@ -534,11 +684,36 @@ static void stk_frame_delete(stk_frame *f) {
   return;
 }
 
+
+/**
+ Create a new green stack frame
+ */
+C_INLINE
+void green_stk_frame_new(vm_green * g, uint64_t callee_i_start, uint64_t ret) {
+  stk_frame *sf;
+  sf = calloc(1, sizeof(stk_frame));
+  sf->vm      = g->vm;
+  sf->bcode   = g->bcode;
+  sf->halt    = 0;
+  sf->ret     = ret;
+  sf->pc      = callee_i_start;
+  sf->base_pc = callee_i_start;
+  //printf("base=%zd\n", func_jump[pc]);
+  sf->up    = NULL;
+  if(g->sf == NULL) {
+    g->sf = sf;
+  }
+  else {
+    g->frames->ops->push(g->frames, g->sf);
+    g->sf    = sf;
+  }
+}
+
 /**
  Create a new stack frame
  */
 C_INLINE
-static void stk_frame_new(vm_obj * v, uint64_t callee_i_start, uint64_t ret) {
+void stk_frame_new(vm_obj * v, uint64_t callee_i_start, uint64_t ret) {
   stk_frame *sf;
   v->dbg.frame_news++;
   sf = calloc(1, sizeof(stk_frame));
@@ -591,7 +766,7 @@ static void stk_frame_new(vm_obj * v, uint64_t callee_i_start, uint64_t ret) {
 
 */
 C_INLINE
-static void vm_call_func(stk_frame * f) {
+void vm_call_func(stk_frame * f) {
   vm_obj *obj = (vm_obj*)f->vm;
   assert(obj);
   REGA;
@@ -610,7 +785,8 @@ static void vm_call_func(stk_frame * f) {
   frame_set_args(f, obj->sf, 1);
 }
 
-C_INLINE static void CALLOP_NOP(stk_frame *f) {
+C_INLINE
+void CALLOP_NOP(stk_frame *f) {
   //print_op("op_nop", f->pc);
   print_in(f);
   f->pc++;
@@ -623,14 +799,15 @@ C_INLINE static void CALLOP_NOP(stk_frame *f) {
  with enforcing types for now.
 */
 
-C_INLINE static void CALLOP_ADD(stk_frame *f) {
+C_INLINE
+void CALLOP_ADD(stk_frame *f) {
   print_in(f);//print_op("op_add", f->pc);
   REGA;
   REGB;
   REGC;
   if(f->r[rb].t != f->r[rc].t) {
-    fprintf(stderr, "Mixed type ADD operation is not permitted:  %u != %u\n",
-            f->r[rb].t, f->r[rc].t);
+    fprintf(stderr, "Mixed type ADD operation is not permitted:  %s != %s\n",
+            op_jump_str[f->r[rb].t], op_jump_str[f->r[rc].t]);
     abort();
   }
   CoolId type = f->r[rb].t;
@@ -648,7 +825,8 @@ C_INLINE static void CALLOP_ADD(stk_frame *f) {
   //printf("add=%llu\n", f->r[ra].u.ui);
 }
 
-C_INLINE  static void CALLOP_ARG(stk_frame *f) {
+C_INLINE
+void CALLOP_ARG(stk_frame *f) {
   print_in(f);//print_op("op_add", f->pc);
   REGA;
   assert(ra > 0 && ra <= 8);
@@ -662,13 +840,14 @@ C_INLINE  static void CALLOP_ARG(stk_frame *f) {
 }
 
 C_INLINE
-static void CALLOP_CALL(stk_frame *f) {
+void CALLOP_CALL(stk_frame *f) {
   print_in(f);//print_op("op_call", f->pc);
   vm_call_func(f);
   f->pc++;
 }
 
-static void CALLOP_DIV(stk_frame *f) {
+C_INLINE
+void CALLOP_DIV(stk_frame *f) {
   print_in(f);//print_op("op_add", f->pc);
   REGA;
   REGB;
@@ -695,7 +874,7 @@ static void CALLOP_DIV(stk_frame *f) {
 
 
 C_INLINE
-static void CALLOP_EQ(stk_frame *f) {
+void CALLOP_EQ(stk_frame *f) {
   print_in(f);//print_op("op_lt", f->pc);
   INST;
   REGA;
@@ -729,13 +908,13 @@ static void CALLOP_EQ(stk_frame *f) {
 }
 
 C_INLINE
-static void CALLOP_HALT(stk_frame *f) {
+void CALLOP_HALT(stk_frame *f) {
   print_in(f);//print_op("op_halt", f->pc);
   f->halt = 1;
 }
 
 C_INLINE
-static void CALLOP_JMP(stk_frame *f) {
+void CALLOP_JMP(stk_frame *f) {
   print_in(f);//print_op("op_jmp", f->pc);
   REG(1);
   assert(r1);
@@ -746,7 +925,7 @@ static void CALLOP_JMP(stk_frame *f) {
  ldk R(A) := uint8_t(R(B))
  */
 C_INLINE
-static void CALLOP_LDK(stk_frame *f) {
+void CALLOP_LDK(stk_frame *f) {
   print_in(f);//print_op("op_ldk", f->pc);
   REGA;
   REGB;
@@ -756,7 +935,7 @@ static void CALLOP_LDK(stk_frame *f) {
 }
 
 C_INLINE
-static void CALLOP_LE(stk_frame *f) {
+void CALLOP_LE(stk_frame *f) {
   print_in(f);//print_op("op_lt", f->pc);
   INST;
   REGA;
@@ -790,7 +969,7 @@ static void CALLOP_LE(stk_frame *f) {
 
 
 C_INLINE
-static void CALLOP_LT(stk_frame *f) {
+void CALLOP_LT(stk_frame *f) {
   print_in(f);//print_op("op_lt", f->pc);
   INST;
   REGA;
@@ -824,7 +1003,8 @@ static void CALLOP_LT(stk_frame *f) {
   }
 }
 
-static void CALLOP_MOD(stk_frame *f) {
+C_INLINE
+void CALLOP_MOD(stk_frame *f) {
   print_in(f);
   REGA;
   REGB;
@@ -850,7 +1030,8 @@ static void CALLOP_MOD(stk_frame *f) {
 }
 
 
-C_INLINE void CALLOP_MOV(stk_frame *f) {
+C_INLINE
+void CALLOP_MOV(stk_frame *f) {
   print_in(f);//print_op("op_mov", f->pc);
   REGA;
   REGB;
@@ -859,7 +1040,8 @@ C_INLINE void CALLOP_MOV(stk_frame *f) {
   f->pc++;
 }
 
-static void CALLOP_POW(stk_frame *f) {
+
+C_INLINE void CALLOP_POW(stk_frame *f) {
   print_in(f);
   REGA;
   REGB;
@@ -885,7 +1067,8 @@ static void CALLOP_POW(stk_frame *f) {
   f->pc++;
 }
 
-static void CALLOP_MUL(stk_frame *f) {
+C_INLINE
+void CALLOP_MUL(stk_frame *f) {
   print_in(f);//print_op("op_add", f->pc);
   REGA;
   REGB;
@@ -910,20 +1093,22 @@ static void CALLOP_MUL(stk_frame *f) {
   //printf("add=%llu\n", f->r[ra].u.ui);
 }
 
-C_INLINE static void CALLOP_PRECALL(stk_frame *f) {
+C_INLINE
+void CALLOP_PRECALL(stk_frame *f) {
   print_in(f);//print_op("op_precall", f->pc);
   //memcpy(&f->r[], &f->r[0], sizeof(f->r[0]) * 8);
   //op_halt(v);
   f->pc++;
 }
 
-C_INLINE static void CALLOP_POSTCALL(stk_frame *f) {
+C_INLINE
+void CALLOP_POSTCALL(stk_frame *f) {
   print_op("op_postcall", f->pc);
   //memcpy(v->r, f->r, sizeof(v->r[0]) * 8);
   f->pc++;
 }
 
-C_INLINE static void CALLOP_RET(stk_frame *f) {
+C_INLINE void CALLOP_RET(stk_frame *f) {
   print_in(f);//print_op("op_ret", f->pc);
   REGA;
   REGB;
@@ -934,7 +1119,7 @@ C_INLINE static void CALLOP_RET(stk_frame *f) {
   stk_frame_delete(f);
 }
 
-C_INLINE static void CALLOP_SET(stk_frame *f) {
+C_INLINE void CALLOP_SET(stk_frame *f) {
   print_in(f);//print_op("op_ret", f->pc);
   REGA;
   REGB;
@@ -946,8 +1131,8 @@ C_INLINE static void CALLOP_SET(stk_frame *f) {
   //print_op("OP_SUB\n", f->pc); assert(1 == 2);
 }
 
-
-static void CALLOP_SUB(stk_frame *f) {
+C_INLINE
+void CALLOP_SUB(stk_frame *f) {
   print_in(f);//print_op("op_add", f->pc);
   REGA;
   REGB;
@@ -973,27 +1158,15 @@ static void CALLOP_SUB(stk_frame *f) {
 }
 
 
-
-static void vm_doop(stk_frame *f, int op, Creg *a, Creg *b, Creg *out) {
-  assert(op == '+' || op == '-' || op == '*' || op == '/');
-
-  switch(op) {
-    case '+': {
-
-    };break;
-      
-  }
-}
-
-
-static void CALLOP_PUSH(stk_frame *f) {print_op("OP_PUSH\n", f->pc); assert(1 == 2);}
-static void CALLOP_POP(stk_frame *f) {print_op("OP_POP\n", f->pc); assert(1 == 2);}
-static void CALLOP_CANARY(stk_frame *f) {print_op("OP_CANARY\n", f->pc); assert(1 == 2);}
-static void CALLOP_ZZ(stk_frame *f) {print_op("OP_ZZ\n", f->pc); assert(1 == 2);}
+C_INLINE void CALLOP_PUSH(stk_frame *f) {print_op("OP_PUSH\n", f->pc); assert(1 == 2);}
+C_INLINE void CALLOP_POP(stk_frame *f) {print_op("OP_POP\n", f->pc); assert(1 == 2);}
+C_INLINE void CALLOP_CANARY(stk_frame *f) {print_op("OP_CANARY\n", f->pc); assert(1 == 2);}
+C_INLINE void CALLOP_ZZ(stk_frame *f) {print_op("OP_ZZ\n", f->pc); assert(1 == 2);}
 
 //* OLD
 //Assert?
-C_INLINE static void CALLOP_ASS(vm_obj *v, uint8_t ra, uint8_t rb, uint8_t rc) {
+C_INLINE
+void CALLOP_ASS(vm_obj *v, uint8_t ra, uint8_t rb, uint8_t rc) {
   //print_op("op_ldk", v->pc);
   assert(v->r[ra].u.ui == v->r[rb].u.ui);
   v->pc++;
@@ -1030,13 +1203,10 @@ static void print_instruction(stk_frame *f) {
     }
   }
   printf("\n");
-
-
-
 }
 
 C_INLINE
-static uint64_t vm_ops(CoolVM *c_vm) {
+uint64_t vm_ops(CoolVM *c_vm) {
   COOL_M_CAST_VM;
   return obj->spin;
 }
@@ -1134,6 +1304,7 @@ void print_cinst(CInst *in, char buff[]) {
 }
 
 
+/*
 C_INLINE
 void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
   assert(1 == 2);
@@ -1148,23 +1319,13 @@ void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
 
   size_t inst_count = 0;
   ssize_t main_start_instruction = -1;
-  /**
-   How big does our instruction array need to be ie
-   count += (instruction in each func).
-   */
+
   for(i = 0; i < c_o->func_count; i++) {
     func_obj *f_obj  = c_o->func_array[i].obj;
     inst_count      += f_obj->i_count;
-
   }
   assert(inst_count > 4);
 
-  /**
-   Allocate bytecode array ready to have the individual
-   functions copied into it.
-   We also add the instruction number where this function
-   starts here so we can call it ie call(instruction_number)
-   */
   obj->bcode = malloc(inst_count * sizeof(CInst));
   size_t main_sig_size = strlen(COOL_MAIN_METHOD_SIGNATURE);
   size_t instruction = 0;
@@ -1172,16 +1333,8 @@ void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
     func_obj *f_obj = c_o->func_array[i].obj;
     //printf("%zu , sig== %s\n", i, f_obj->sig);
     if(main_sig_size == strlen(f_obj->sig)) {
-      /**
-       Check for main signature and if so mark it as such because
-       execution will start here
-       */
       //printf("sig== %s\n", f_obj->sig);
       if(memcmp(f_obj->sig, COOL_MAIN_METHOD_SIGNATURE, main_sig_size) == 0) {
-        /**
-         Should we accept multiple main methods where main
-         really means start new process/thread/event etc?
-         */
         assert(main_start_instruction == -1);
         main_start_instruction = instruction;
       }
@@ -1193,10 +1346,6 @@ void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
     for(n = 0; n < f_obj->i_count; n++) {
       CInst in;
       in.i32 = f_obj->inst[n].i32;
-      /*      printf("%2zu: %5s, %3d, %3d %3d\n",
-       instruction,
-       op_jump_str[in.arr[0]],
-       in.arr[1], in.arr[2], in.arr[3]); */
       obj->bcode[instruction].i32 = f_obj->inst[n].i32;
       instruction++;
     }
@@ -1204,7 +1353,6 @@ void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
   assert(main_start_instruction != -1);
 
 
-  /** Allocate contant pool array and load constants */
   obj->const_count = c_o->const_regs_count;
   obj->constants   = calloc(1, sizeof(Creg) * (obj->const_count + 1));
   assert(obj->constants);
@@ -1212,22 +1360,7 @@ void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
   obj->constants[0].u.si = 0;
   size_t idx = 1;
   for(i = 0; i < obj->const_count; i++) {
-
     obj->constants[idx++] = c_o->const_regs[i];
-    /*
-     if(c_o->const_regs[i].t == CoolStringId) {
-     printf("%zu str:%s\n", idx, obj->constants[idx].u.str);
-     }
-     else if(c_o->const_regs[i].t == CoolIntegerId) {
-     printf("%zu lld:%lld\n", idx, obj->constants[idx].u.si);
-     }
-     else if(c_o->const_regs[i].t == CoolDoubleId) {
-     printf("%zu dub:%f\n", idx, obj->constants[idx].u.d);
-     }
-     else if(c_o->const_regs[i].t == CoolObjectId) {
-     printf("object\n");
-     }*/
-
   }
 
   obj->inst_count = inst_count;
@@ -1257,10 +1390,21 @@ void vm_main(CoolVM *c_vm, CoolObj * cool_obj) {
     }
     op_jump[obj->sf->bcode[obj->sf->pc].arr[0]](obj->sf);
   }
-  //printf("spin=%llu\n", v->spin);
   obj->pc = 0;
   obj->sf->pc = 0;
 }
+*/
+
+/*
+ static void vm_doop(stk_frame *f, int op, Creg *a, Creg *b, Creg *out) {
+ assert(op == '+' || op == '-' || op == '*' || op == '/');
+ switch(op) {
+ case '+': {
+ };break;
+ }
+ }
+ */
+
 
 
 /**
@@ -1451,6 +1595,19 @@ void vm_init_old(CoolVM *c_vm, CInst bc[], uint32_t inst_count) {
 }
 */
 
+/*
+ if(c_o->const_regs[i].t == CoolStringId) {
+ printf("%zu str:%s\n", idx, obj->constants[idx].u.str);
+ }
+ else if(c_o->const_regs[i].t == CoolIntegerId) {
+ printf("%zu lld:%lld\n", idx, obj->constants[idx].u.si);
+ }
+ else if(c_o->const_regs[i].t == CoolDoubleId) {
+ printf("%zu dub:%f\n", idx, obj->constants[idx].u.d);
+ }
+ else if(c_o->const_regs[i].t == CoolObjectId) {
+ printf("object\n");
+ }*/
 
 /*
  void vm_init2(CoolVM *c_vm, CInst bc[], uint32_t inst_count) {

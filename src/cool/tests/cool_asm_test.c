@@ -28,31 +28,31 @@ typedef struct asm_test  {
  */
 static asm_test basic_math_tests[] = {
   {1, "Add",
-    "/git/cool/src/cool/tests/asm/test_add.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_add.asm"
   },
   {1, "Mul",
-    "/git/cool/src/cool/tests/asm/test_mul.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_mul.asm"
   },
   {1, "Sub",
-    "/git/cool/src/cool/tests/asm/test_sub.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_sub.asm"
   },
   {1, "Div",
-    "/git/cool/src/cool/tests/asm/test_div.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_div.asm"
   },
   {1, "Pow",
-    "/git/cool/src/cool/tests/asm/test_pow.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_pow.asm"
   },
   {1, "Mod",
-    "/git/cool/src/cool/tests/asm/test_mod.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_mod.asm"
   },
 };
 
 static asm_test basic_call_func_tests[] = {
   {0, "a = 0; while(a < 100) {a = inc(a);} return 0;",
-      "/git/cool/src/cool/tests/asm/test_while_lt_100_call_inc.asm"
+      "/git/ghub/cool/src/cool/tests/asm/test_while_lt_100_call_inc.asm"
   },
   {1, "main(){int(mul())};",
-    "/git/cool/src/cool/tests/asm/test_main_call_inc_call_mul.asm"
+    "/git/ghub/cool/src/cool/tests/asm/test_main_call_inc_call_mul.asm"
   },
 };
 
@@ -76,6 +76,14 @@ static void run_tests(asm_test t[], size_t num_tests) {
     double start = clock_start();
 
 
+    /**
+     The reason why the class is not instantiated in the asm object
+     is because it gets passed to the VM. The VM owns the class objects 
+     and it will also deallocate it. Note, I was tempted to add the 
+     instantiation of the class to the VM but this would mean any tooling
+     that we want to create around the class object would also require VM 
+     instantiation.
+     */
     CoolObj *class = cool_obj_new();
     CoolASM *casm = cool_asm_new(class);
     casm->ops->parse(casm, fbuf, "Test1");

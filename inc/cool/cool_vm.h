@@ -121,7 +121,6 @@ struct stk_frame {
 };
 
 typedef struct CoolVMOps {
-  void         (* main    )(CoolVM *vm, CoolObj *class);
   void         (* load    )(CoolVM *vm, CoolObj *class);
   void         (* start   )(CoolVM *vm);
   uint64_t     (* ops     )(CoolVM *vm);

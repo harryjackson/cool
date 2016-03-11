@@ -1,4 +1,3 @@
-
 # Cool Virtual Machine
 
 ## Introduction
@@ -248,15 +247,12 @@ being copied i always copy them regardess.  I'm not sure yet what limits my
 linked list frames are going to impose on me but not being able to easily grow
 the frame might be a PITA. 
 
-
-
 ## Class Loader 
 
 The class loaded is where we load each file into the Machine. When the class
 gets loaded it gets an ID etc. Execution starts at at the method in Casm with
 the following signature main:(IS)(I). I've not figured out how I want to call
 external objects yet.
-
 
 As a start I'll implement the following 
 
@@ -271,6 +267,52 @@ Note, it will not have a class path ie some other location above where the main
 directory is. Anything up the tree will need to have it's own VM and all
 communication between these will be message passing not direct calls.  This
 will force me to implement message passing early.
+
+A concrete example is when parsing the ASM file we need to resolve the following 
+opcode
+
+\code{.asm}
+call "ClassName.inc(D)(D)"
+\endcode
+
+This needs to be resolved to a classid and instruction pointer ie
+
+````
+call(ClassId, InstNumber);
+````
+
+The problem with this is that we may not have the class we need when we start 
+loading ie we're loading class A and it references class B. Do we pause the load 
+and load B if it has not already been loaded or do we annotate the class file with 
+something that will indicate that we need B and it must be resolved later. 
+
+The options:
+
+1. We could be lazy and load on first use but that would require tons of checks 
+and if statements.
+2. Load any class referenced in the constant pool table. If the constant pool 
+looked like
+
+\code{.s}
+.constants
+def:globals:8:{
+  db:1:S:"Test1"
+  db:2:L:"ClassName"
+  db:5:I:1
+}
+.methods
+\endcode
+
+Then the class loader would immediately load <b>ClassName</b>. Loading the class
+would mean that a class loader would need to be created any time you want to use 
+ASM files ie any non trivial class is likely going to need to load <b>IO</b> classes
+etc.
+
+Personally I prefer 2. 
+
+Multiple class loaders. Not sure if this is worth adding yet.
+
+Moving classes or bytecode around, see [Optimizations](#Optimization)
 
 ## Scoping
 
@@ -306,6 +348,40 @@ its exported functions.
 5. A function that's imported does not pollute the namespace ie "import math.sin;"
 does not mean you can use it like "var f = sin(foo);" ie namespaces are never 
 polluted.
+
+## Concurrency 
+
+Please have a look at Go's scheduling mechanism.... TBD
+
+## Optimization 
+
+I'm not concerned about optimizing the code or adding it to the VM now but I'll
+add notes here and in the source as they occour to me
+
+### Optimizing ByteCode
+
+The bytecode should be stored with the class but I think the bytecode might
+need to be relocatable. A lot of great Optimizations involve moving bytecode ie
+inlining functions or moving bytecode to make cache hits more likely when it's
+running. A good example is a JMP instruction. We can jump to bytecode that
+might be megabytes away in the heap. Moving that code to within a few bytes
+means that the target of the JMP can be in the same cache line ie orders of
+magnitude faster. This is where things would start to get really complex.
+
+
+### JIT
+
+Adding a JIT is the obvious way to increase performance in an interpreter. 
+Compiling to C might be easier though and it's more protable. 
+
+I'm not sure if I'd prefer targetting C or working on the JIT targeting
+Nasm/Fasm.  Of course we could compile C functions on the fly and dyanamically
+load these in and then replace the calls to calls to the compiled C functions
+and increment the instruction count. There are a lot of options, personally
+anything involving C will likely be my choice because writing assembler would
+get me bogged down
+
+I'm aware of template driven JIT's but not looked into them that much.
 
 ## Error Handling
 
