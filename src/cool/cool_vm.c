@@ -152,7 +152,6 @@ struct vm_green {
   CoolStack * frames; // Stack frames for gthread
   stk_frame * sf;     // Current stack frame
   CInst     * bcode;
-
 };
 
 /**
@@ -374,6 +373,7 @@ static void vm_proc_delete(vm_proc *p) {
 
 static vm_green * vm_green_new(vm_obj *obj, Class *class) {
   vm_green * g  = calloc(1, sizeof(vm_green));
+  g->vm         = obj;
   g->frames     = cool_stack_new();
   g->bcode      = class->bcode;
   green_stk_frame_new(g, class->pc, g->ret);
@@ -540,6 +540,10 @@ static void vm_start(CoolVM *c_vm) {
   obj->proc_q->ops->enque(obj->proc_q, p);
 
   //push p onto scheduler que.
+//  while(g->sf->halt == 0) {
+//    uint8_t in = g->bcode[g->sf->pc].arr[0];
+//    op_jump[g->bcode[g->sf->pc].arr[0]](g->sf);
+//  }
 
   while(obj->sf->halt == 0) {
     uint8_t in = obj->sf->bcode[obj->sf->pc].arr[0];
@@ -781,7 +785,6 @@ void vm_call_func(stk_frame * f) {
   //assert(rs == 0);
   size_t return_pc = f->pc + 1;
   stk_frame_new(obj, func_id, return_pc);
-
   frame_set_args(f, obj->sf, 1);
 }
 
