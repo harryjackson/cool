@@ -186,8 +186,8 @@ struct stk_frame {
   Creg        retb;
   Creg        retc;
   Creg        save[COOL_MAX_VM_SAVED_STACK_FRAME_REGISTERS];
-  Creg        args[COOL_MAX_VM_SAVED_STACK_FRAME_ARGS];
-  Creg        r[COOL_MAX_VM_METHOD_CALLEE_REGISTERS];
+  Creg        args[COOL_MAX_VM_SAVED_STACK_FRAME_ARGS     ];
+  Creg        r   [COOL_MAX_VM_METHOD_CALLEE_REGISTERS    ];
   uint64_t    halt;
   CInst     * bcode;
   void      * grow;//?

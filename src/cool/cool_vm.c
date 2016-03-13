@@ -2,8 +2,6 @@
  \file
  This is where the action happens
 */
-
-
 #include "cool/cool_asm.h"
 #include "cool/cool_vm.h"
 #include "cool/cool_limits.h"
@@ -254,6 +252,9 @@ static void green_stk_frame_new(vm_green * g, uint64_t callee_i_start, uint64_t 
 static void stk_frame_new(vm_green * g, uint64_t pc, uint64_t ret);
 static void stk_frame_delete(stk_frame *f);
 static void frame_save(stk_frame *f);
+static void frame_restore(stk_frame *f);
+static void frame_restore(stk_frame *f);
+static void frame_set_args(stk_frame *old, stk_frame *new, uint8_t argc);
 
 static vm_address * vm_address_new(CoolAddress type);
 static void         vm_address_delete(vm_address *adr);
@@ -306,8 +307,6 @@ CoolVM * cool_vm_new() {
 void cool_vm_delete(CoolVM *c_vm) {
   COOL_M_CAST_VM;
 
-  //free(obj->bcode);
-  //free(obj->constants);
   class_loader_delete(obj->ldr);
   while(obj->proc_q->ops->length(obj->proc_q) > 0) {
     vm_proc * p = obj->proc_q->ops->pop(obj->proc_q);
@@ -505,37 +504,26 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
 
 /**
  The class loader will eventually need to be able to run not just before we 
- start the VM but as it encounters new classes during execution. The class loader 
- should really be it's own object and hold all references to the objects it loads.
+ start the VM but as it encounters new classes during execution. The loader should
+ be it's own object and hold all references to the objects it loads.
  
- Multiple "main signatures" will produce a warning for now.
- It should fail or we can use it to indicate that we want a new 
- process. I'd prefer fail because then there's not risk of 
- someome making the mistake where they incorrectly add to main 
- functions to their file. To indicate a new process we should
- uise an explicit process method.
+ Multiple "main signatures" will produce a warning for now. It should fail or we 
+ can use it to indicate that we want a new process. I'd prefer fail because then 
+ there's no risk of someome making the mistake where they incorrectly add a main
+ function to their file.
 
- The vm needs to load multiple object files into it and this
- means we need to have a data structure to store each file...
- ideally this would be some sort of array for fast lookup. The
- current implementation uses obj->bcode which means we're
- limited to 1 object file at this time. We should eventually have
- obj->bcode[oid] where oid == class that was loaded into the VM.
- The VM should maintain a class list so it can determine name
- conflicts etc before loading a new class ie if it's already
- been loaded we should either bomb with an error/ warning or???
+ The vm needs to load multiple object files into it and this means we need to have 
+ a data structure to store each file... ideally this would be some sort of array 
+ for fast lookup. The implementation we're working on uses an addressing scheme.
 
- obj->classes will containt the array of loaded classes.
+ It's interesting to note that the constant pool in Java starts at  index 1. I did 
+ start this one at 0 but it's actually a PITA to program it like that so I'm adding 
+ a dummy register at 0.
 
- It's interesting to note that the constant pool in Java starts at
- index 1. I did start this one at 0 but it's actually a PITA to
- program it like that so I'm adding a dummy register at 0.
-
- Strings: I like the idea of an internal constant table for the
- entire VM ie we load the class and any constants already found in
- the main constant pool are reused. This is used in .NET and called
- string interning, there's not reason not to use the same thing
- for all constants.
+ Strings: I like the idea of an internal constant table for the entire VM ie we 
+ load the class and any constants already found in the main constant pool are 
+ reused. This is used in .NET and called string interning, there's no reason not 
+ to use the same thing for all constants.
 */
 C_INLINE
 void vm_class_loader(CoolVM *c_vm, CoolObj * cool_obj) {
@@ -637,9 +625,8 @@ void vm_loader(vm_obj *obj, CoolObj * cool_obj) {
 }
 
 /**
- I think that the vm_start should kick off the scheduler and it should start 
- with the mailroom ie whats the first message to be processed. Messages should be 
- delievered and then the
+ I think vm_start should kick off the scheduler and it should start with the 
+ mailroom ie whats the first message to be processed.
  */
 static void vm_start(CoolVM *c_vm) {
   COOL_M_CAST_VM;
@@ -664,47 +651,6 @@ static void vm_start(CoolVM *c_vm) {
   //sleep(20);
 }
 
-
-/**
- This is the kickoff routine and starts the interpreter.
- 
- This routine should not run the interpreter loop, it should be 
- handling the process and thread scheduler. Basically it needs to 
- 
- 1. Load Main class
- 2. Schedule a process with starting point set to main.pc
- 3. Push onto que.
-
- \todo Leaf Functions: We could edit each OP_FUNCTION to make it
- a leaf function by performing the tests in the dispatch loop, this
- might give a speed boost.
- */
-/*
-static void vm_start_working(CoolVM *c_vm) {
-  COOL_M_CAST_VM;
-  size_t calls = 0;
-  static const size_t call_limit = 20500;
-  obj->sf->bcode   = obj->bcode;
-
-  while(obj->sf->halt == 0) {
-    op_counters[obj->sf->bcode[obj->sf->pc].arr[0]]++;
-    obj->spin++;
-    uint8_t in = obj->sf->bcode[obj->sf->pc].arr[0];
-    if(obj->sf->bcode[obj->sf->pc].arr[0] == OP_CALL) {
-      calls++;
-      if(calls > call_limit) {
-        printf("Hard Call Limit reached: %zu\n", calls);
-        abort();
-      }
-    }
-    op_jump[obj->sf->bcode[obj->sf->pc].arr[0]](obj->sf);
-  }
-  obj->pc = 0;
-  obj->sf->pc = 0;
-}
- */
-
-
 /**
  We need to know how much space to allocate for the instruction array in an object
  */
@@ -718,72 +664,6 @@ static size_t vm_count_instructions(CoolObj * cool_obj) {
   }
   return inst_count;
 }
-
-#define SAVE_REG_BASE 0
-C_INLINE
-void frame_restore(stk_frame *f) {
-  f->r[1] = f->save[SAVE_REG_BASE + 0];
-  f->r[2] = f->save[SAVE_REG_BASE + 1];
-  f->r[3] = f->save[SAVE_REG_BASE + 2];
-  f->r[4] = f->save[SAVE_REG_BASE + 3];
-  f->r[5] = f->save[SAVE_REG_BASE + 4];
-  f->r[6] = f->save[SAVE_REG_BASE + 5];
-  f->r[7] = f->save[SAVE_REG_BASE + 6];
-  f->r[8] = f->save[SAVE_REG_BASE + 7];
-}
-
-C_INLINE
-void frame_save(stk_frame *f) {
-  f->save[SAVE_REG_BASE + 0] = f->r[1];
-  f->save[SAVE_REG_BASE + 1] = f->r[2];
-  f->save[SAVE_REG_BASE + 2] = f->r[3];
-  f->save[SAVE_REG_BASE + 3] = f->r[4];
-  f->save[SAVE_REG_BASE + 4] = f->r[5];
-  f->save[SAVE_REG_BASE + 5] = f->r[6];
-  f->save[SAVE_REG_BASE + 6] = f->r[7];
-  f->save[SAVE_REG_BASE + 7] = f->r[8];
-}
-
-
-/**
- \todo Performance: We're falling through on both these switch statements.
- We could use a goto and avoid both switch statments altogether.
- If at -O3 it proves to be faster we'll make the change.
- */
-C_INLINE
-void frame_set_args(stk_frame *old, stk_frame *new, uint8_t argc) {
-  assert(argc == 1);
-  switch(argc) {
-    case 8: new->args[8] = old->args[8];
-    case 7: new->args[7] = old->args[7];
-    case 6: new->args[6] = old->args[6];
-    case 5: new->args[5] = old->args[5];
-    case 4: new->args[4] = old->args[4];
-    case 3: new->args[3] = old->args[3];
-    case 2: new->args[2] = old->args[2];
-    case 1: new->args[1] = old->args[1];
-    case 0: (void)0;
-  };
-
-  switch(argc) {
-    case 8: new->r[8] = old->args[8];
-    case 7: new->r[7] = old->args[7];
-    case 6: new->r[6] = old->args[6];
-    case 5: new->r[5] = old->args[5];
-    case 4: new->r[4] = old->args[4];
-    case 3: new->r[3] = old->args[3];
-    case 2: new->r[2] = old->args[2];
-    case 1: new->r[1] = old->args[1];
-    case 0: (void)0;
-  };
-}
-
-static vm_debug * vm_dbg(CoolVM *c_vm) {
-  COOL_M_CAST_VM;
-  return &obj->dbg;
-}
-
-
 
 /**
  Deleting the stack frame is tricky because the frame about to
@@ -863,35 +743,7 @@ void stk_frame_new(vm_green * g, uint64_t callee_i_start, uint64_t ret) {
 }
 
 /**
- Call takes an index into the static function table. 
- It's currently limited to 16bits, if the constant pool
- table can be 24 bits in size this might be an issue. Call
- should be able to call into external files or we create a
- CALL_EXTERN operator to do that.
- 
- \todo Work on call handling > 2^16 - 1 values. This can then 
- be extended to other operator that require this 
- 
- OP , Number
- 
- ie
- LDK -- Load constant from constant pool uses reg.rs
- 
- It might make sense to do thte following 
- 
- LDK , 17000    ; Load onstant at index 17000 into r1
- MOV , r3 , r1  ; Mob r1 into r3
- 
- The aove format allows us to have ~24m vs ~16k constants
- in one class file. Judging by how successful JAVA is with 
- a 16k limit the benefits may be marginal at best.
- 
- I'd consider those instuctions to be rare ie I'd likely introduce
- an instruction to do this.
-
- we need a load that can load from a register or the 
- 3 bytes of the intruction.
-
+ Call sends a message to the resolved address.
 */
 C_INLINE
 void vm_call_func(stk_frame * f) {
@@ -1334,6 +1186,71 @@ static void print_instruction(stk_frame *f) {
     }
   }
   printf("\n");
+}
+
+
+#define SAVE_REG_BASE 0
+C_INLINE
+void frame_restore(stk_frame *f) {
+  f->r[1] = f->save[SAVE_REG_BASE + 0];
+  f->r[2] = f->save[SAVE_REG_BASE + 1];
+  f->r[3] = f->save[SAVE_REG_BASE + 2];
+  f->r[4] = f->save[SAVE_REG_BASE + 3];
+  f->r[5] = f->save[SAVE_REG_BASE + 4];
+  f->r[6] = f->save[SAVE_REG_BASE + 5];
+  f->r[7] = f->save[SAVE_REG_BASE + 6];
+  f->r[8] = f->save[SAVE_REG_BASE + 7];
+}
+
+C_INLINE
+void frame_save(stk_frame *f) {
+  f->save[SAVE_REG_BASE + 0] = f->r[1];
+  f->save[SAVE_REG_BASE + 1] = f->r[2];
+  f->save[SAVE_REG_BASE + 2] = f->r[3];
+  f->save[SAVE_REG_BASE + 3] = f->r[4];
+  f->save[SAVE_REG_BASE + 4] = f->r[5];
+  f->save[SAVE_REG_BASE + 5] = f->r[6];
+  f->save[SAVE_REG_BASE + 6] = f->r[7];
+  f->save[SAVE_REG_BASE + 7] = f->r[8];
+}
+
+
+/**
+ \todo Performance: We're falling through on both these switch statements.
+ We could use a goto and avoid both switch statments altogether.
+ If at -O3 it proves to be faster we'll make the change.
+ */
+C_INLINE
+void frame_set_args(stk_frame *old, stk_frame *new, uint8_t argc) {
+  assert(argc == 1);
+  switch(argc) {
+    case 8: new->args[8] = old->args[8];
+    case 7: new->args[7] = old->args[7];
+    case 6: new->args[6] = old->args[6];
+    case 5: new->args[5] = old->args[5];
+    case 4: new->args[4] = old->args[4];
+    case 3: new->args[3] = old->args[3];
+    case 2: new->args[2] = old->args[2];
+    case 1: new->args[1] = old->args[1];
+    case 0: (void)0;
+  };
+
+  switch(argc) {
+    case 8: new->r[8] = old->args[8];
+    case 7: new->r[7] = old->args[7];
+    case 6: new->r[6] = old->args[6];
+    case 5: new->r[5] = old->args[5];
+    case 4: new->r[4] = old->args[4];
+    case 3: new->r[3] = old->args[3];
+    case 2: new->r[2] = old->args[2];
+    case 1: new->r[1] = old->args[1];
+    case 0: (void)0;
+  };
+}
+
+static vm_debug * vm_dbg(CoolVM *c_vm) {
+  COOL_M_CAST_VM;
+  return &obj->dbg;
 }
 
 C_INLINE

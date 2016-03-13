@@ -39,6 +39,7 @@ set(cool_srcs
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_limits.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_list.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_mem.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_murmur3.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_node.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_obj.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_queue.h
@@ -66,8 +67,7 @@ set(cool_srcs
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_symtab.c
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_types.c
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_vm.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/cool/murmur3.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/cool/murmur3.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_murmur3.c
 )
 add_executable(cool_asm_test
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_asm.h
@@ -100,7 +100,7 @@ add_executable(cool_compiler_test
 add_executable(cool_hash_test
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/tests/cool_hash_test.c
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_utils.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/cool/murmur3.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_murmur3.c
 )
 add_executable(cool_lexer_test
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/tests/cool_lexer_test.c
