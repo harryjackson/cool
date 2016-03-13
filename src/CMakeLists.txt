@@ -6,11 +6,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cool/)
 source_group(VM 
   FILES 
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_asm.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_asm.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_asm.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_io.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_limits.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_obj.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_vm.h
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_asm.c
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_io.c
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/tests/cool_asm_test.c

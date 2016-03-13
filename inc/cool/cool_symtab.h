@@ -1,4 +1,4 @@
-/**\file */
+/** \file */
 #ifndef COOL_SYMTAB_H
 #define COOL_SYMTAB_H
 #include "cool/cool_uthash.h"

@@ -1,5 +1,5 @@
 #include "cool/cool_symtab.h"
-#include "cool_utils.h"
+#include "cool/cool_utils.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

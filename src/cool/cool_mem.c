@@ -251,7 +251,7 @@ void cool_print_cache() {
   for(i = 0; i < CACHE_SIZE; i++) {
     CoolStack *list = MemCache[i];
     if(list != NULL) {
-      size_t len = list->ops->len(list);
+      size_t len = list->ops->length(list);
       if(len > 0) {
         printf("i=%d length=%zu\n",i ,len);
       }

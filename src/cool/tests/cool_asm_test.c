@@ -56,8 +56,13 @@ static asm_test basic_call_func_tests[] = {
   },
 };
 
+static asm_test basic_class_loader_tests[] = {
+  {1, "Load the Math asm and use the Add function to add two integer",
+    "TestLoader"
+  },
+};
 
-static void run_tests(asm_test t[], size_t num_tests) {
+static void run_tests2(asm_test t[], size_t num_tests) {
   size_t i = 0;
   for(i = 0; i < num_tests ; i++) {
     if(t[i].run == 0) {
@@ -75,19 +80,9 @@ static void run_tests(asm_test t[], size_t num_tests) {
     cool_io_file_slurp(fname, fbuf);
     double start = clock_start();
 
-
-    /**
-     The reason why the class is not instantiated in the asm object
-     is because it gets passed to the VM. The VM owns the class objects 
-     and it will also deallocate it. Note, I was tempted to add the 
-     instantiation of the class to the VM but this would mean any tooling
-     that we want to create around the class object would also require VM 
-     instantiation.
-     */
     CoolObj *class = cool_obj_new();
     CoolASM *casm = cool_asm_new(class);
     casm->ops->parse(casm, fbuf, "Test1");
-
 
     double bytespersec = clock_ops_persec(start, fsize);
     printf("%0.3f ops per second op\n", bytespersec);
@@ -100,7 +95,7 @@ static void run_tests(asm_test t[], size_t num_tests) {
 
     CoolVM *vm = cool_vm_new();
 
-    vm->ops->load(vm, class);
+   // vm->ops->load(vm, class);
     vm->ops->start(vm);
 
     size_t ops_run = vm->ops->ops(vm);
@@ -113,15 +108,38 @@ static void run_tests(asm_test t[], size_t num_tests) {
 
 }
 
+static void run_tests(asm_test t[], size_t num_tests) {
+  size_t i = 0;
+  for(i = 0; i < num_tests ; i++) {
+    if(t[i].run == 0) {
+      continue;
+    }
+    char *class_name = t[i].asmfile;
+    double start = clock_start();
+    CoolVM *vm = cool_vm_new();
+    vm->ops->load(vm, class_name);
+    vm->ops->start(vm);
+    cool_vm_delete(vm);
+    double bytespersec = clock_ops_persec(start, 1);
+    printf("%0.3f ops per second op\n", bytespersec);
+  }
+}
+
 
 
 int main() {
   size_t ops = 20;
+  size_t num_tests = 0;
 
-  size_t num_tests = sizeof(basic_math_tests)/sizeof(basic_math_tests[0]);
-  run_tests(basic_math_tests, num_tests);
+  //num_tests = sizeof(basic_math_tests)/sizeof(basic_math_tests[0]);
+  //run_tests(basic_math_tests, num_tests);
 
-  num_tests = sizeof(basic_call_func_tests)/sizeof(basic_call_func_tests[0]);
-  run_tests(basic_call_func_tests, num_tests);
+  //num_tests = sizeof(basic_call_func_tests)/sizeof(basic_call_func_tests[0]);
+  //run_tests(basic_call_func_tests, num_tests);
+
+
+  num_tests = sizeof(basic_class_loader_tests)/sizeof(basic_class_loader_tests[0]);
+  run_tests(basic_class_loader_tests, num_tests);
+
   return 0;
 }

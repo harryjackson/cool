@@ -8,9 +8,19 @@
 #include <stdio.h>
 #include <stdint.h>
 
+
+/**
+ The class_id type is the index into the class_loader. An index of -1 indicates
+ a problem.
+ */
+typedef ssize_t vm_id;
+typedef ssize_t class_id;
+typedef size_t  pcounter;
+
 typedef struct Creg      Creg;
 typedef struct stk_frame stk_frame;
 typedef struct vm_obj    vm_obj;
+typedef struct vm_green  vm_green;
 
 typedef struct CoolVM  CoolVM;
 typedef struct uint8_t CoolReg;
@@ -34,6 +44,25 @@ static CoolOpStrings OpStrings[] = {
 #undef C_VM_OPS
 };
 
+typedef enum CoolAddress {
+#define C_VM_ADDRESS(op,id,str) op = id,
+#include "cool/cool_vm_address.h"
+#undef C_VM_ADDRESS
+} CoolAddress;
+
+typedef struct CoolAddressStrings {
+  const char *name;
+  CoolAddress addr;
+} CoolAddressStrings;
+
+static CoolAddressStrings CoolAddrStrings[] = {
+#define C_VM_ADDRESS(op,id,str) { #str, op},
+#include "cool/cool_vm_address.h"
+#undef C_VM_ADDRESS
+};
+
+
+
 typedef CoolId VMType;
 
 typedef struct reg_bytes {
@@ -50,13 +79,11 @@ typedef struct reg_words {
 } reg_words;
 
 /**
- The Creg serves as the base type for everything in the VM.
- I'm not sure if this is a good way to represent a register 
- yet and I've deliberately avoided using pointers to types 
- and have only one of these ie "*ptr". *ptr will point to 
- String and Object types.
- */
-
+ The <b>ureg</b> serves as the base type for all registers in the VM and the 
+ constant pool. I'm not sure if this is a good way to represent a register yet.
+ 
+ \todo ureg needs namespaced
+*/
 typedef union ureg {
   reg_bytes  bytes;
   reg_words  words;
@@ -68,9 +95,18 @@ typedef union ureg {
   double     d;
 } ureg;
 
+/**
+ Constant pool items need to contain more information than a register can hold.
+ We need a way to link functions in remote objects is one example and the link
+ information needs a place to live.
+ */
+
 struct Creg {
   VMType   t;
   ureg     u;
+  struct {
+    size_t ext;
+  } func;
 };
 
 /**
@@ -102,9 +138,46 @@ typedef struct vm_debug {
   uint64_t frame_news;
 } vm_debug;
 
+
+typedef union vm_addr {
+  struct {
+    class_id cid;
+    pcounter pc;
+  } func;
+  struct {
+    class_id cid;
+  } object;
+} vm_addr;
+
+typedef struct vm_address {
+  CoolAddress type;
+  /**
+   We need to be able to handle remote invocations. This is a huge topic and 
+   just stuffing some IP's or socket related stuff here is not going to work.
+   I need to read up on XDR/Protobuf etc and decide how we address remote code.
+   Please see main docs on Actors for more on this.
+   */
+  //vm_addr  addr;
+  union {
+    struct {
+      class_id cid;
+      pcounter pc;
+    } func;
+    struct {
+      class_id cid;
+    } object;
+  };
+} vm_address;
+
+typedef struct vm_address_book {
+  /** Virtual Machine id */
+  vm_id        vid;
+  vm_address * addresses;
+} vm_address_book;
+
 struct stk_frame {
-  vm_obj    * vm;  //Parent VM
-  stk_frame * up;  //Closures?
+  vm_green  * g;
+  stk_frame * up;  //Closures like LUA's upvalues?
 //  stk_frame * next;//Nested routine calls
   uint64_t    ret;
   uint64_t    pc;
@@ -121,7 +194,7 @@ struct stk_frame {
 };
 
 typedef struct CoolVMOps {
-  void         (* load    )(CoolVM *vm, CoolObj *class);
+  void         (* load    )(CoolVM *vm, const char *class_name);
   void         (* start   )(CoolVM *vm);
   uint64_t     (* ops     )(CoolVM *vm);
   vm_debug   * (* debug   )(CoolVM *vm);

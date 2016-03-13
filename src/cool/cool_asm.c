@@ -91,6 +91,7 @@ static void   parse_constants(asm_obj * obj);
 static void   parse_methods(asm_obj * obj);
 static void   parse_bytecode(asm_obj * obj);
 static void   parse_instructions(asm_obj * obj, CoolObjFunc *func);
+static void   parse_sig(asm_obj *obj, tok *t, char sig[]);
 
 static long get_long(asm_obj *obj);
 
@@ -242,7 +243,6 @@ static void asm_header(asm_obj * obj) {
   obj->pos += strlen(COOL_OBJ_MAGIC_STRING);
 
   while(buf->mem.b8[++obj->pos] != '\n') {
-
     if(buf->mem.b8[obj->pos + 1] == '.') {
       break;
     }
@@ -396,13 +396,22 @@ static tok * asm_tok_new(asm_obj *obj, tid id) {
       assert(t->len > 0);
       break;
     case T_DQ_STRING:
-      while(isprint(obj->buf->mem.b8[obj->pos + t->len])){
+      /* \todo We need to handle strings properly, this won't work with escaped strings */
+
+      t->len++;
+      while(isprint(obj->buf->mem.b8[obj->pos + t->len]) && obj->buf->mem.b8[obj->pos + t->len] != '"'){
         t->len++;
       };
+      t->len++;
+
+//      while(obj->buf->mem.b8[obj->pos + t->len] != '\n'){
+//      1;
+//      };
+
       //printf("%.*s\n", t->len, &obj->buf->mem.b8[t->pos]);
-      if(obj->buf->mem.b8[obj->pos + t->len] != '\n') {
-        asm_print_error(obj, "Non printable character found in string");
-      }
+//      if(obj->buf->mem.b8[obj->pos + t->len] != '\n') {
+//        asm_print_error(obj, "Non printable character found in string");
+//      }
       break;
     case T_COMMENT:
       while(obj->buf->mem.b8[obj->pos + t->len] != '\n'){
@@ -417,9 +426,12 @@ static tok * asm_tok_new(asm_obj *obj, tid id) {
     case T_CURLYL   : t->len = 1;break;
     case T_CURLYR   : t->len = 1;break;
     case T_DOLLAR   : t->len = 1;break;
+    case T_DASH     : t->len = 1;break;
+    case T_GT       : t->len = 1;break;
     case T_CONSTANTS: t->len = strlen(".constants");break;
     case T_METHODS  : t->len = strlen(".methods");break;
     case T_BYTECODE : t->len = strlen(".bytecode");break;
+    case T_USE      : t->len = strlen(".use");break;
     default: printf("tid=%d\n", id);asm_print_error(obj, "Bad Instruction found");
   }
   obj->pos += t->len;
@@ -457,7 +469,10 @@ static tok * token(asm_obj * obj) {
       return asm_tok_new(obj, T_COMMENT);
     }
     else if(obj->buf->mem.b8[obj->pos] == '.') {
-      if(PEEK('c')) {
+      if(PEEK('u')) {
+        return asm_tok_new(obj, T_USE);
+      }
+      else if(PEEK('c')) {
         return asm_tok_new(obj, T_CONSTANTS);
       }
       else if(PEEK('m')){
@@ -472,6 +487,12 @@ static tok * token(asm_obj * obj) {
     }
     else if (obj->buf->mem.b8[obj->pos] == ':') {
       return asm_tok_new(obj, T_COLON);
+    }
+    else if (obj->buf->mem.b8[obj->pos] == '-') {
+      return asm_tok_new(obj, T_DASH);
+    }
+    else if (obj->buf->mem.b8[obj->pos] == '>') {
+      return asm_tok_new(obj, T_GT);
     }
     else if (obj->buf->mem.b8[obj->pos] == '(') {
       return asm_tok_new(obj, T_BRACKETL);
@@ -500,8 +521,13 @@ static tok * token(asm_obj * obj) {
     else if (obj->buf->mem.b8[obj->pos] == '$') {
       return asm_tok_new(obj, T_DOLLAR);
     }
-    //printf("%c\n", obj->buf->mem.b8[obj->pos - 1]);
-    //printf("%c\n", obj->buf->mem.b8[obj->pos]);
+    else if (obj->buf->mem.b8[obj->pos] == ' ') {
+      return asm_tok_new(obj, T_WS);
+    }
+    printf("%c\n", obj->buf->mem.b8[obj->pos - 1]);
+    printf("%c\n", obj->buf->mem.b8[obj->pos]);
+    printf("%c\n", obj->buf->mem.b8[obj->pos + 1]);
+
     asm_print_error(obj, "Invalid character found");
   }
   return NULL;
@@ -512,10 +538,7 @@ static void parse(asm_obj *obj) {
   tok *t;
   size_t line = 2;
   while((t = token(obj)) != T_NULL) {
-//    printf("%s ", tok_details[t->id].name);
-//    if(t->id == T_NEWLINE) {
-//      printf("\n%zu ", line++);
-//    }
+    //printf("tok: %s\n", tok_details[t->id].name);
     assert(t != NULL);
     obj->tok_q->ops->enque(obj->tok_q, t);
   }
@@ -567,8 +590,7 @@ static void add_string_const(asm_obj *obj) {
   assert(ID.id  == T_ID);
   assert(VAL.id == T_DQ_STRING);
 
-  Creg *reg = malloc(sizeof(Creg));
-  reg->t    = CoolStringId;
+  Creg *reg = cool_creg_new(CoolStringId);
 
   reg->u.ptr = malloc(VAL.len);
   memcpy(reg->u.ptr, &obj->buf->mem.b8[VAL.pos], VAL.len);
@@ -592,8 +614,7 @@ static void add_integer_const(asm_obj *obj) {
   assert(ID.id  == T_ID);
   assert(VAL.id == T_INTEGER);
 
-  Creg *reg = malloc(sizeof(Creg));
-  reg->t    = CoolIntegerId;
+  Creg *reg = cool_creg_new(CoolIntegerId);
   reg->u.si = strtoul((const char *)&obj->buf->mem.b8[VAL.pos], NULL, 10);
   obj->const_q->ops->enque(obj->const_q, reg);
   assert(1 == 9);
@@ -637,19 +658,23 @@ static void parse_global_constants(asm_obj *obj) {
 
     tok_expect(obj, T_COLON);
     switch(type) {
-      case 'L': ;;
       case 'S': {
-
-        //assert(NULL);
         t = tok_next(obj);
         T = *t;
         free(t);
         t = NULL;
-
         assert(T.id == T_DQ_STRING);
-        Creg *reg = cool_creg_new(CoolStringId);
+
+        //printf("tl=%zu\n",T.len);
+        assert(T.len == 9);
+
+        //printf("%c\n", obj->buf->mem.b8[T.pos]);
+        //printf("%.15s\n", &obj->buf->mem.b8[T.pos]);
+        //printf("%c\n", obj->buf->mem.b8[T.pos + T.len - 1]);
+        //printf("%.5s\n", &obj->buf->mem.b8[T.pos + T.len - 1]);
         assert(obj->buf->mem.b8[T.pos]             == '"');
         assert(obj->buf->mem.b8[T.pos + T.len - 1] == '"');
+        Creg *reg = cool_creg_new(CoolStringId);
         reg->u.ptr = malloc(T.len);
         /**
          We want to copy the string without the quotes and we need to 
@@ -660,7 +685,7 @@ static void parse_global_constants(asm_obj *obj) {
         memcpy(reg->u.ptr, &obj->buf->mem.b8[T.pos + 1], T.len - 1);
         ((uint8_t*)reg->u.ptr)[T.len - 2] = '\0';
         size_t tok_len = strlen(((char*)reg->u.ptr));
-        //printf("%s tl=%zu  l=%zu\n", ((char*)reg->u.ptr), t->len, tok_len);
+        //printf("??%s tl=%zu  l=%zu\n", ((char*)reg->u.ptr), T.len, tok_len);
         assert(tok_len == (T.len - 2));
         obj->const_q->ops->enque(obj->const_q, reg);
       };break;
@@ -678,7 +703,8 @@ static void parse_global_constants(asm_obj *obj) {
         t = tok_next(obj);
         T = *t;
         COOL_FREE(t);
-        
+        t = NULL;
+
         long idx = strtol((char *)&obj->buf->mem.b8[T.pos], NULL, 10);
         assert(errno == 0);
         Creg *reg = cool_creg_new(CoolIntegerId);
@@ -687,8 +713,48 @@ static void parse_global_constants(asm_obj *obj) {
         obj->const_q->ops->enque(obj->const_q, reg);
       };break;
       case 'O':{
-        assert(1 == 2);
         add_constant_to_file(obj, type);
+      };break;
+      case 'C': {
+        t = tok_next(obj);
+        T = *t;
+        free(t);
+        t = NULL;
+        assert(T.id == T_ID);
+        Creg *reg = cool_creg_new(CoolClassId);
+        reg->u.str = malloc(T.len);
+        memcpy(reg->u.ptr, &obj->buf->mem.b8[T.pos], T.len);
+        reg->u.str[T.len] = '\0';
+        size_t tok_len = strlen(((char*)reg->u.str));
+        //printf("%s tl=%zu  l=%zu\n", ((char*)reg->u.str), T.len, tok_len);
+        assert(tok_len == T.len);
+        obj->const_q->ops->enque(obj->const_q, reg);
+      };break;
+      case 'F': {
+        t = tok_next(obj);
+        T = *t;
+        free(t);
+        t = NULL;
+        char sig[COOL_MAX_OBJECT_METHOD_SIGNATURE];
+        //printf("%.15s\n", &obj->buf->mem.b8[T.pos]);
+        parse_sig(obj, &T, sig);
+
+        assert(T.id == T_ID);
+        Creg *reg = cool_creg_new(CoolFunctionId);
+
+        size_t sig_len = strnlen(sig, COOL_MAX_OBJECT_METHOD_SIGNATURE);
+
+        assert(sig_len != COOL_MAX_OBJECT_METHOD_SIGNATURE); //I know theres a bug here
+
+        reg->u.str = malloc(sig_len);
+        memcpy(reg->u.str, sig, sig_len);
+
+        reg->u.str[sig_len] = '\0';
+        size_t tok_len = strlen(((char*)reg->u.str));
+        //printf("sig==%s\n", reg->u.str);
+        //printf("%s tl=%zu  l=%zu\n", ((char*)reg->u.str), T.len, tok_len);
+        assert(tok_len == sig_len);
+        obj->const_q->ops->enque(obj->const_q, reg);
       };break;
       default: abort();
     }
@@ -728,10 +794,36 @@ static void parse_constants(asm_obj * obj) {
   //obj->tok_q->ops->push(obj->tok_q, t);
 }
 
+/**
+ Signatures can come in the following forms
+ 
+ inc:(I)(I)
+ Math->inc:(I)(I)
+ 
+ We're going to need to extend this to handle 
+ deeper nesting ie
+ 
+ Complex/Math->inc:(I)(I)
+
+ To be able to handle external addressing we'd need something like. Note, this is 
+ just a rough example and this is one area that would need a fair amount of 
+ thought and reading up on things like RMI/RPC etc
+ 
+ id@127.0.0.1:Complex/Math->inc:(I)(I)
+ */
+
 static void parse_sig(asm_obj *obj, tok *t, char sig[]) {
+  if(t == NULL) {
+    t = tok_next(obj);
+  }
   assert(t->id == T_ID);
-  //t will be freed in caller method
   size_t start_pos = t->pos;
+  if(tok_peek(obj, T_DASH)) {
+    tok_eat(obj, T_DASH);
+    tok_eat(obj, T_GT);
+    tok_eat(obj, T_ID);
+  }
+  //printf(">%0.15s\n", &obj->buf->mem.b8[t->pos]);
   tok_eat(obj, T_COLON);
   tok_eat(obj, T_BRACKETL);
   tok *types = tok_next(obj);
@@ -926,23 +1018,45 @@ static void parse_instructions(asm_obj *obj, CoolObjFunc *func) {
     };
     case OP_CALL: {
       tok_eat(obj,T_COMMA);
-      t = tok_next(obj);//id
+      t = tok_next(obj);
+      printf("%s\n", tok_details[t->id].name);
+      assert(t->id == T_DOLLAR);
       T = *t;
       free(t);
-      assert(T.id == T_ID);
-      char sig[COOL_MAX_OBJECT_METHOD_SIGNATURE] = {0};
-      parse_sig(obj, &T, sig);
-      CoolObjFunc *callee = obj->class->ops->findFunc(obj->class, sig);
-      if(callee == NULL) {
-        fprintf(stderr, "Missing declaration for function with signature %s\n", sig);
-      }
-      CInst *in = malloc(sizeof(CInst));
-      //printf("sig(%s) fid = %zu\n", sig, callee->ops->id(callee));
 
-      in->i32 = cool_vm_cinst_new(tid, 0, 0, 0, 0, callee->ops->id(callee));
+      if(T.id == T_DOLLAR) {
+        t = tok_next(obj);
+        T = *t;
+        free(t);
+      }
+      uint16_t val = strtoul((const char*)&obj->buf->mem.b8[T.pos], NULL, 10);
+      //printf("%s, %ld, %hu\n", tok_details[id->id].name, ra, val);
+      CInst *in = malloc(sizeof(CInst));
+      in->i32   = cool_vm_cinst_new(tid, 0, 0, 0, val, 0);
       obj->inst_q->ops->enque(obj->inst_q, in);
       parse_instructions(obj, func);
       return;
+
+//      t = tok_next(obj);//id
+//      T = *t;
+//      free(t);
+//
+//      //assert(T.id == T_ID);
+//      char sig[COOL_MAX_OBJECT_METHOD_SIGNATURE] = {0};
+//      parse_sig(obj, &T, sig);
+//
+//      Creg *r        = cool_creg_new(CoolFunctionId);
+//
+//      printf("sid=%s\n", sig);
+//      printf("sid=%s\n", r->u.str);
+//
+//      obj->const_q->ops->enque(obj->const_q, r);
+//      //CInst *in = malloc(sizeof(CInst));
+//      uint16_t cpool_id = obj->const_q->ops->length(obj->const_q) + 1;
+//      in->i32 = cool_vm_cinst_new(tid, 0, 0, 0, cpool_id , 0);
+//      obj->inst_q->ops->enque(obj->inst_q, in);
+//      parse_instructions(obj, func);
+//      return;
     };
     case OP_DIV: {
       int ra = tok_get_reg(obj);

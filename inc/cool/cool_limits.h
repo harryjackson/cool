@@ -4,6 +4,31 @@
 #ifndef COOL_LIMITS_H
 #define COOL_LIMITS_H
 
+/**
+ Casm file extension
+ */
+#define COOL_ASM_FILE_EXT ".asm"
+
+
+/**
+ \todo Class path. This is really only here for testing.
+  This needs to be part of configuration. For now it's where all 
+ the test fixtures live.
+ */
+#define COOL_CLASS_PATH "/git/ghub/cool/src/cool/tests/asm"
+
+
+/**
+ \todo Everything like file paths and length etc need to be in an arch header
+ where we can change them based on OS etc
+ */
+#define COOL_MAX_FILE_LENGTH 256
+#define COOL_MAX_PATH_LENGTH 256
+#define COOL_MAX_FILE_PATH_LENGTH 512
+
+
+
+
 /* 
  The main method signature does not vary and is in keeping with
  main(argc, argv) { return 0;}
@@ -50,7 +75,7 @@
  is 15 strlen() + \0 
  */
 
-#define COOL_MAX_OBJECT_METHOD_SIGNATURE 16
+#define COOL_MAX_OBJECT_METHOD_SIGNATURE 24
 
 /* Max code in method ie instruction count. */
 
@@ -85,6 +110,13 @@
  */
 #define COOL_VM_STACK_REG_COUNT 16
 
+/**
+ Inital address book size. I intend to keep the address book in contigous 
+ memory. Moving address books about for address that get called a lot might
+ impact cache hit performance. Using realloc might prove to be a PITA, 
+ we'll see.
+ */
+#define COOL_VM_ADDRESS_BOOK_INIT_SIZE 1024
 
 /**
  When we load classes if we need more memory how many do 

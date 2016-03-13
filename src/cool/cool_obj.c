@@ -377,10 +377,18 @@ static void obj_addConsts(CoolObj *c_obj, CoolQueue *q) {
   for(i = 0 ; i < obj->const_regs_count; i++) {
     Creg *reg = q->ops->deque(q);
     assert(reg != NULL);
+
+    assert(reg != CoolNillId);
+   // printf("%s", )
+
     assert(reg->t == CoolIntegerId
            || reg->t == CoolDoubleId
            || reg->t == CoolStringId
-           || reg->t == CoolObjectId);
+           || reg->t == CoolObjectId
+           || reg->t == CoolFunctionId
+           || reg->t == CoolClassId
+           || reg->t == CoolObjectId
+           );
 
     obj->const_regs[i] = *reg;
 

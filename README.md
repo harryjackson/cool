@@ -1,6 +1,8 @@
-# Cool Virtual Machine
+[TOC]
 
-## Introduction
+# Cool Virtual Machine {#VM}
+
+## Introduction {#intro}
 
 I'm still trying to figure out Doxygen at the moment. This means this page will
 likely look a little odd as I learn it's markup etc.
@@ -8,11 +10,22 @@ likely look a little odd as I learn it's markup etc.
 Most of this is randmom musings ie thoughts about language design etc. Some
 items might not even be possible.
 
+## Fail Fast Fail Early {#failfast}
+
 Note. A lot of the code here is happy path ie if malloc does not give me a
-valid pointer I abort() etc. I'm trying to cover as much ground as I can
-without getting bogged down in things like performance, perfect code, perfect
-api's etc. I write basic tests for almost everying and use valgrind and Xcodes
-leak detector but that's it. This is not production quality C.
+valid pointer I abort() etc. On practically any error I call abort. The code is
+absolutely peperred with asserts that I don't turn off ie approximately 8% of
+the lines of code are asserts/aborts... I'd prefer if it was closer to 10% 
+and I'm working on getting it higher. 
+
+I'm trying to cover as much ground as I can without getting bogged down in
+things like performance, perfect code, perfect api's etc. I write basic tests
+for almost everying and use valgrind and Xcodes leak detector but that's it.
+This is not production quality C. 
+
+The idea is to make sure that a change that might remotely break something 
+somewhere else in the code is found really early. This is also why a lot of 
+the limits in the limits header are deliberately small.
 
 I'll be using a lot of pseudo code for the Hypothetical Language frontend 
 language. Nothing in the FE is in concrete until I know what I have in the 
@@ -22,7 +35,7 @@ I use the terms Class/Object etc interchangeably. This does not mean the
 language is pure OO, I like OO but I also like first class functions and 
 closures. When I load a class I mean the file that contains the code.  
 
-## Aims
+## Aim {#aim}
 
 The aim of this is education at this point. In particular I want to learn more 
 about
@@ -49,9 +62,40 @@ system](https://en.wikipedia.org/wiki/Distributed_operating_system)
 
 I'm not attempting anything so bold as a distributed OS but communication of 
 independant processes in a network is something I'd like to achieve even if 
-it's only doing simple tasks.. 
+it's only doing simple tasks.
 
-## Installation
+
+## Actors {#actors}
+
+I like the idea of Actors. Need to read more in this area. 
+
+There's a decent paper [by Benjamin C. Pierce on pi-calcus using PICT
+here](http://www.dipmat.unict.it/~barba/PROG-LANG/PROGRAMMI-TESTI/READING-MATERIAL/TutorialPICT.pdf)
+
+I think if I could get a minimal message passing system working it would be an
+interesting projects to create a frontend based on one of th e pi-calculus
+variants and run it on the machine.
+
+
+### Addressing Actors
+
+We need to address actors in each VM and each VM will likely need some sort of
+address.
+
+\code{.c}
+struct {
+  class\_id cid;
+  pcounter  pc;
+};
+\endcode
+
+I need to read up on XDR, Protobuff etc to see how we pass arbitrary messages
+around. I also need to look at BEAM to see how it's doing this. Whatever's
+simplest is likely to be what gets picked. Discovery is also going to be
+another hard problem.
+
+
+## Installation {#installation}
 
 The entire project is written in C.
 
@@ -70,9 +114,9 @@ cmake -G Xcode ../
 Then open the XCode project file in ./build in Xcode and you should be able 
 to run some of the tests etc
 
-## Cool Assembly Language (casm)
+## Cool Assembly Language (casm) {#casm}
 
-### Casm Intro
+### Casm Intro {#casmintro}
 
 I think the name Casm is perfect because there's a casm between Casm and real
 assembler. The VM willl load casm files in ascii or binary. I've chosen ascii
@@ -86,7 +130,7 @@ semantics easier to reason about if the BE has a clean separation.
 
 The Casm file format belongs to the backend.
 
-### Casm Features
+### Casm Features {#casmfeatures}
 
 Some  things are very difficult to implement, in particular anything to do
 with the VM working in a network environment with other VM's in some sort of
@@ -94,7 +138,7 @@ distributed OS. I believe error handling might be an unsolvable problem ie
 there are two many tradeoffs with any of the popular methods that make [none of
 them great.](https://en.wikipedia.org/wiki/Perfect_is_the_enemy_of_good)
 
-### Must have features
+### Must have features {#musthaves}
 
 Some of these sound simple enough. I've listed them here so anyone can quckly 
 see what exists and what doesn't.
@@ -121,7 +165,7 @@ see what exists and what doesn't.
 </table>
 
 
-## Base Wish list
+### Base Wish list {#basewishlist}
 
 The basic list does not imply simplest to develop it just sets the base set of
 features required to enable me to play with concurrency. Having multiple cores
@@ -142,7 +186,7 @@ doing this because at the outset most of this was just theory to me..
 4. Design a simple Frontend Language that targets Casm and supports concurrency 
    in some form. This is vague because I don't know what method I'll use yet.
 
-## Larger Wish list
+### Large Wish list {#largewishlist}
 
 Some other features that would be great to add
 
@@ -237,7 +281,7 @@ bad idea by people smarter than me.
 [The Garbage Collection Handbook](http://amzn.com/1420082795)
 
 
-## Casm Calling Conventions
+## Casm Calling Conventions {#casmcallingconvention}
 
 This has caused me no end of consternation. A fixed convvention is easy to
 write but it's in part starting to limit the frontend. I like the idea of a
@@ -247,26 +291,33 @@ being copied i always copy them regardess.  I'm not sure yet what limits my
 linked list frames are going to impose on me but not being able to easily grow
 the frame might be a PITA. 
 
-## Class Loader 
+## Class Loader  {#classloader}
 
 The class loaded is where we load each file into the Machine. When the class
 gets loaded it gets an ID etc. Execution starts at at the method in Casm with
-the following signature main:(IS)(I). I've not figured out how I want to call
-external objects yet.
+the following signature main:(IS)(I)..
 
-As a start I'll implement the following 
+As a start I'll implement the following or something reembling it... 
 
 ````
 Foo foo := Foo();
 ````
 
 The class loader will search for a "./Foo.asm" in the same directory where the
-VM found it's main function.
+VM found the file with a main function. Finding classes is simple enough, managing
+dependencies is something else entirely, [it's a Hard
+Problem](http://stackoverflow.com/questions/28099683/algorithm-for-dependency-resolution).
+Obviously lots of languages do it, make files do it so it's doable but even
+[mature language suffer with dependency problems](https://github.com/sbt/sbt/issues/413)
 
-Note, it will not have a class path ie some other location above where the main
-directory is. Anything up the tree will need to have it's own VM and all
-communication between these will be message passing not direct calls.  This
-will force me to implement message passing early.
+I can see now why Go forces the programmer to remove superflous
+dependencies. Reducing dependencies is a headache.
+
+Note, we're not going to have a class path ie some other location above where 
+the main directory is. Anything up the tree will need to have it's own VM and 
+all communication between these will be message passing not direct calls. This
+will force me to implement message passing early. We'll see how this works in
+practice.
 
 A concrete example is when parsing the ASM file we need to resolve the following 
 opcode
@@ -281,40 +332,60 @@ This needs to be resolved to a classid and instruction pointer ie
 call(ClassId, InstNumber);
 ````
 
-The problem with this is that we may not have the class we need when we start 
-loading ie we're loading class A and it references class B. Do we pause the load 
-and load B if it has not already been loaded or do we annotate the class file with 
-something that will indicate that we need B and it must be resolved later. 
+or if the bytecode is a huge array then it's a single instruction pointer.
 
-The options:
+To simplify things Loading and Linking need to be two distinct operations. 
+I tried to do them at the same time and the code was awful. 
 
-1. We could be lazy and load on first use but that would require tons of checks 
-and if statements.
-2. Load any class referenced in the constant pool table. If the constant pool 
-looked like
+This means that the Loader does the loading and loads any necessary
+dependencies.  The linker then figures out how to map all the function calls.
+If everyuthing was an actor then linking would be a case of resolving all
+addresses to Queues/Sockets or some other mechanism that decouples the caller
+and callee ie the two actors.
+
+While running the VM should be able to load and link classes on demand.
+
+The current Casm file will look like : 
 
 \code{.s}
 .constants
 def:globals:8:{
-  db:1:S:"Test1"
-  db:2:L:"ClassName"
-  db:5:I:1
+  db:1:S:"ThisClassName"
+  db:2:F:"ExternClass->Adder(I)(I)"
+  db:3:F:"ThisClassName->Adder(I)(I)"
+  db:4:I:1
 }
 .methods
+Adder:(I)(I) {
+  arg  , 1 , r1
+  call , $2
+  ret  , r1
+}
+main:(IS)(I) {
+  arg  , 1 , r1
+  call , $3
+  ret  , r1
+}
 \endcode
 
-Then the class loader would immediately load <b>ClassName</b>. Loading the class
-would mean that a class loader would need to be created any time you want to use 
-ASM files ie any non trivial class is likely going to need to load <b>IO</b> classes
-etc.
+The class load will load the class and any files it needs, in this case it will
+be looking for a class called <b>ExternClass</b> but it won't check to see if
+the functions exist etc.
 
-Personally I prefer 2. 
+I originally wanted to avoid having a completely separate Loader but I think
+it's justified, it's too complex to couple it with the VM now.
+
+When we load a class in order to make function access an array lookup we need
+to annotate one of two places. We can either annotate the call itself or we
+make the constant pool entry capable of hold the information we need ie the
+linker adds the locations etc to the constant pool. Something irks me about
+editing anything with constant in the name.
 
 Multiple class loaders. Not sure if this is worth adding yet.
 
 Moving classes or bytecode around, see [Optimizations](#Optimization)
 
-## Scoping
+## Scoping {#scoping}
 
 I think wars have been fought over this. Here are some question that need 
 answering...
@@ -349,16 +420,16 @@ its exported functions.
 does not mean you can use it like "var f = sin(foo);" ie namespaces are never 
 polluted.
 
-## Concurrency 
+## Concurrency {#concurrency}
 
-Please have a look at Go's scheduling mechanism.... TBD
+Please have a look at Go's scheduling mechanism. 
 
-## Optimization 
+## Optimization {#optimization}
 
 I'm not concerned about optimizing the code or adding it to the VM now but I'll
 add notes here and in the source as they occour to me
 
-### Optimizing ByteCode
+### Optimizing ByteCode {#optimizebytecode}
 
 The bytecode should be stored with the class but I think the bytecode might
 need to be relocatable. A lot of great Optimizations involve moving bytecode ie
@@ -369,7 +440,7 @@ means that the target of the JMP can be in the same cache line ie orders of
 magnitude faster. This is where things would start to get really complex.
 
 
-### JIT
+### JIT {#jit}
 
 Adding a JIT is the obvious way to increase performance in an interpreter. 
 Compiling to C might be easier though and it's more protable. 
@@ -383,7 +454,7 @@ get me bogged down
 
 I'm aware of template driven JIT's but not looked into them that much.
 
-## Error Handling
+## Error Handling {#errorhandling}
 
 For the record I don't like Exceptions in Java/C++ etc. I prefer explicit error 
 handling even though it peppers the code full of boiler plate.
@@ -394,7 +465,6 @@ Interesting ways to implemetn error handling
 2. Multiple return types like Go
 3. Code at the end of the function that gets called on error detection from any
    function called.
-
 
 Great read on Erlangs philosophy on errors.
 [Zen of Erlang](http://ferd.ca/the-zen-of-erlang.html)
@@ -473,9 +543,28 @@ file := try:File("/badfilepath.txt").(/dev/null);
 
 ````
 
+## FE Language Design notes
+
+The following is just a list of ideas on the FE design.
+
+### Inbuilt types
+
+1. Hash/Map
+2. Lists/Slices ie Go's slices are wonderful
+3. Queues. I think the language will need some sort of queue.
+
+### Regexes
+
+I love Perl's regex's.
+
+### Notes
+
+1. Concat operator is ++ not '.' and definitely not '+'. I like the way 
+Haskell treats strings as lists.
+2. UTF8 everywhere.
 
 
-## Language Design Reading
+## Language Design Reading {#reading}
 
 Where I find interesting articles I'll drop them in here...
 

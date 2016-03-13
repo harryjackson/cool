@@ -1,4 +1,3 @@
-/**\ file */
 #ifndef COOL_STACK_H
 #define COOL_STACK_H
 #include <stdlib.h>
@@ -7,9 +6,9 @@
 typedef struct CoolStack CoolStack;
 
 typedef struct CoolStackOps {
-  void    (* push   )(CoolStack * t, void *n);
-  void *  (* pop    )(CoolStack * t);
-  size_t  (* length )(CoolStack * t);
+  void    (* push )(CoolStack * t, void * v);
+  void *  (* pop  )(CoolStack * t);
+  size_t  (* len  )(CoolStack * t);
 } CoolStackOps;
 
 struct CoolStack {

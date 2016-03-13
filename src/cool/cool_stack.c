@@ -34,9 +34,9 @@ CoolStack * cool_stack_new() {
   obj->len = 0;
   obj->head = NULL;
 
-  ops->push = &stack_push;
-  ops->pop  = &stack_pop;
-  ops->len  = &stack_len;
+  ops->push   = &stack_push;
+  ops->pop    = &stack_pop;
+  ops->length = &stack_len;
 
   imp->obj = obj;
   imp->ops = ops;

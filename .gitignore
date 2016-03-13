@@ -5,4 +5,5 @@ docs/dox/*
 *CMakeFiles.txt
 *lex.yy.c
 instruments/
+scratch/*
 src/cmake_install.cmake
