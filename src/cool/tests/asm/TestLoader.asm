@@ -17,9 +17,8 @@ Add:(II)(I) {
   ldk  ,   r1 ,   $5
   ldk  ,   r2 ,   $5
   arg  ,   1  ,   r1
-  arg  ,   2  ,   r1
-  add  ,   r1 ,   r1 ,   r2
-;call ,   $3
+  arg  ,   2  ,   r1 ;add  ,   r1 ,   r1 ,   r2
+  send ,   $3
   ret  ,   r1
 }
 main:(IS)(I) {

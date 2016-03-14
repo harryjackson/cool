@@ -293,30 +293,32 @@ static int lookup(asm_obj *obj, const uint8_t *name, size_t len) {
     uint8_t op;
   } op;
   static op tab_3[] = {
-    { "nop",      OP_NOP     },
-    { "mov",      OP_MOV     },
-    { "set",      OP_SET     },
-    { "arg",      OP_ARG     },
-    { "add",      OP_ADD     },//GOOD
-    { "call",     OP_CALL    },
-    { "ret",      OP_RET     },
-    { "jmp",      OP_JMP     },
-    { "ldk",      OP_LDK     },
-    { "precall",  OP_PRECALL },
-    { "postcall", OP_POSTCALL},
-    { "sub",      OP_SUB     },//GOOD
-    { "mul",      OP_MUL     },//GOOD
-    { "div",      OP_DIV     },//GOOD
-    { "mod",      OP_MOD     },
-    { "pow",      OP_POW     },
-    { "eq",       OP_EQ      },
-    { "le",       OP_LE      },
-    { "lt"  ,     OP_LT      },
-    { "push",     OP_PUSH    },
-    { "pop" ,     OP_POP     },
-    { "halt",     OP_HALT    },
-    { "canary",   OP_CANARY  },
-    { "zz",       OP_ZZ      },
+#define C_VM_OPS(op,id,op2,lcopstr) { lcopstr , op },
+#include "cool/cool_vm_ops.h"
+//    { "nop",      OP_NOP     },
+//    { "mov",      OP_MOV     },
+//    { "set",      OP_SET     },
+//    { "arg",      OP_ARG     },
+//    { "add",      OP_ADD     },//GOOD
+//    { "call",     OP_CALL    },
+//    { "ret",      OP_RET     },
+//    { "jmp",      OP_JMP     },
+//    { "ldk",      OP_LDK     },
+//    { "precall",  OP_PRECALL },
+//    { "postcall", OP_POSTCALL},
+//    { "sub",      OP_SUB     },//GOOD
+//    { "mul",      OP_MUL     },//GOOD
+//    { "div",      OP_DIV     },//GOOD
+//    { "mod",      OP_MOD     },
+//    { "pow",      OP_POW     },
+//    { "eq",       OP_EQ      },
+//    { "le",       OP_LE      },
+//    { "lt"  ,     OP_LT      },
+//    { "push",     OP_PUSH    },
+//    { "pop" ,     OP_POP     },
+//    { "halt",     OP_HALT    },
+//    { "canary",   OP_CANARY  },
+//    { "zz",       OP_ZZ      },
   };
 
   //printf("Found token: >%.*s<\n", 5, name);
@@ -722,7 +724,7 @@ static void parse_global_constants(asm_obj *obj) {
         t = NULL;
         assert(T.id == T_ID);
         Creg *reg = cool_creg_new(CoolClassId);
-        reg->u.str = malloc(T.len);
+        reg->u.str = calloc(1, T.len);
         memcpy(reg->u.ptr, &obj->buf->mem.b8[T.pos], T.len);
         reg->u.str[T.len] = '\0';
         size_t tok_len = strlen(((char*)reg->u.str));
@@ -746,7 +748,7 @@ static void parse_global_constants(asm_obj *obj) {
 
         assert(sig_len != COOL_MAX_OBJECT_METHOD_SIGNATURE); //I know theres a bug here
 
-        reg->u.str = malloc(sig_len);
+        reg->u.str = calloc(1, sig_len);
         memcpy(reg->u.str, sig, sig_len);
 
         reg->u.str[sig_len] = '\0';
@@ -1036,27 +1038,6 @@ static void parse_instructions(asm_obj *obj, CoolObjFunc *func) {
       obj->inst_q->ops->enque(obj->inst_q, in);
       parse_instructions(obj, func);
       return;
-
-//      t = tok_next(obj);//id
-//      T = *t;
-//      free(t);
-//
-//      //assert(T.id == T_ID);
-//      char sig[COOL_MAX_OBJECT_METHOD_SIGNATURE] = {0};
-//      parse_sig(obj, &T, sig);
-//
-//      Creg *r        = cool_creg_new(CoolFunctionId);
-//
-//      printf("sid=%s\n", sig);
-//      printf("sid=%s\n", r->u.str);
-//
-//      obj->const_q->ops->enque(obj->const_q, r);
-//      //CInst *in = malloc(sizeof(CInst));
-//      uint16_t cpool_id = obj->const_q->ops->length(obj->const_q) + 1;
-//      in->i32 = cool_vm_cinst_new(tid, 0, 0, 0, cpool_id , 0);
-//      obj->inst_q->ops->enque(obj->inst_q, in);
-//      parse_instructions(obj, func);
-//      return;
     };
     case OP_DIV: {
       int ra = tok_get_reg(obj);
@@ -1177,6 +1158,27 @@ static void parse_instructions(asm_obj *obj, CoolObjFunc *func) {
       int ra = tok_get_reg(obj);
       CInst *in = malloc(sizeof(CInst));
       in->i32 = cool_vm_cinst_new(tid, ra, 0, 0, 0, 0);
+      obj->inst_q->ops->enque(obj->inst_q, in);
+      parse_instructions(obj, func);
+      return;
+    };
+    case OP_SEND: {
+      tok_eat(obj,T_COMMA);
+      t = tok_next(obj);
+      printf("%s\n", tok_details[t->id].name);
+      assert(t->id == T_DOLLAR);
+      T = *t;
+      free(t);
+
+      if(T.id == T_DOLLAR) {
+        t = tok_next(obj);
+        T = *t;
+        free(t);
+      }
+      uint16_t val = strtoul((const char*)&obj->buf->mem.b8[T.pos], NULL, 10);
+      //printf("%s, %ld, %hu\n", tok_details[id->id].name, ra, val);
+      CInst *in = malloc(sizeof(CInst));
+      in->i32   = cool_vm_cinst_new(tid, 0, 0, 0, val, 0);
       obj->inst_q->ops->enque(obj->inst_q, in);
       parse_instructions(obj, func);
       return;

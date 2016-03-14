@@ -224,16 +224,16 @@ typedef struct vm_obj {
 
 static void call2(stk_frame *f);
 
-#define C_VM_OPS(op,id,str) static void CALL ## op(stk_frame *f);
+#define C_VM_OPS(op,id,str,lcopstr) static void CALL ## op(stk_frame *f);
 #include "cool/cool_vm_ops.h"
 
 typedef void (*op_func)(stk_frame *f);
 static op_func op_jump[64]     = {
-#define C_VM_OPS(op,id,str) &CALL ## op,
+#define C_VM_OPS(op,id,str,lcopstr) &CALL ## op,
 #include "cool/cool_vm_ops.h"
 };
 static char *  op_jump_str[64] = {
-#define C_VM_OPS(op,id,str) #op,
+#define C_VM_OPS(op,id,str,lcopstr) #op,
 #include "cool/cool_vm_ops.h"
 };
 
@@ -261,12 +261,15 @@ static void         vm_address_delete(vm_address *adr);
 
 static void   vm_load_constant_pool(Class *class, class_obj *c_o);
 static size_t vm_count_instructions(CoolObj * cool_obj) ;
+static void   vm_load_externals(vm_obj *obj, CoolQueue *ext_addrs);
 
 static class_loader * class_loader_new();
 static void           class_loader_delete(class_loader *ldr);
 
-static void       vm_loader(vm_obj *obj, CoolObj * cool_obj);
-static void       vm_class_loader(CoolVM *c_vm, CoolObj *class);
+static void vm_loader(vm_obj *obj, CoolObj * cool_obj);
+static void vm_class_loader(CoolVM *c_vm, CoolObj *class);
+static void load_class(vm_obj *obj, const char *class_name);
+
 
 /** Virtual Machine API */
 static void       vm_start(CoolVM *c_vm);
@@ -275,10 +278,10 @@ static uint64_t   vm_ops(CoolVM *c_vm);
 static vm_debug * vm_dbg(CoolVM *c_vm);
 
 static CoolVMOps OPS = {
-  &vm_load_class,
-  &vm_start,
-  &vm_ops,
-  &vm_dbg,
+  .load  = vm_load_class,
+  .start = vm_start,
+  .ops   = vm_ops,
+  .debug = vm_dbg,
 };
 
 CoolVM * cool_vm_new() {
@@ -314,6 +317,8 @@ void cool_vm_delete(CoolVM *c_vm) {
   }
   cool_queue_delete(obj->proc_q);
 
+  free(obj->book->addresses);
+  free(obj->book);
   free(c_vm->obj);
   free(c_vm);
 }
@@ -396,6 +401,7 @@ static void vm_green_delete(vm_green *g) {
 }
 
 static vm_address * vm_address_new(CoolAddress type) {
+  assert(type == COOL_FUNC_addr || type == COOL_CLASS_addr);
   vm_address * adr = calloc(1, sizeof(vm_address));
   adr->type = type;
   return adr;
@@ -418,7 +424,10 @@ static void vm_address_delete(vm_address *adr) {
 static void vm_load_class(CoolVM *c_vm, const char *class_name) {
   assert(class_name != NULL);
   COOL_M_CAST_VM;
+  load_class(obj, class_name);
+}
 
+static void load_class(vm_obj *obj, const char *class_name) {
   char class_name_buf[COOL_MAX_FILE_PATH_LENGTH];
 
   const size_t class_path_len = strlen(COOL_CLASS_PATH);
@@ -460,8 +469,6 @@ static void vm_load_class(CoolVM *c_vm, const char *class_name) {
  funcs table and have it point to the correct program counter which will be 
  determined when loading the s
  */
-
-
 static void vm_load_constant_pool(Class *class, class_obj *c_o) {
   class->con_count = c_o->const_regs_count;
   class->constants = calloc(1, sizeof(Creg) * (class->con_count + 1));
@@ -470,7 +477,9 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
   class->constants[0].u.si = 0;
 
   char   class_func_sig[COOL_MAX_OBJECT_METHOD_SIGNATURE];
-  char * class_name = c_o->const_regs[0].u.str;
+  char * class_name     = c_o->const_regs[0].u.str;
+  printf("class_name=%s\n", class_name);
+
   size_t class_name_len = strnlen(class_name, COOL_MAX_OBJECT_METHOD_SIGNATURE);
   assert(class_name_len < (COOL_MAX_OBJECT_METHOD_SIGNATURE - 3));
 
@@ -483,7 +492,7 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
 
   size_t idx = 1;
   size_t i   = 0;
-  for(i = 0; i < class->con_count; i++) {
+  for(i = 0; i < class->con_count; i++, idx++) {
     class->constants[idx] = c_o->const_regs[i];
 
     if(class->constants[idx].t == CoolFunctionId) {
@@ -496,7 +505,6 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
         printf("External Function sig=%s\n", class->constants[idx].u.str);
       }
     }
-    idx++;
   }
   //exit(1);
 }
@@ -507,18 +515,17 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
  start the VM but as it encounters new classes during execution. The loader should
  be it's own object and hold all references to the objects it loads.
  
- Multiple "main signatures" will produce a warning for now. It should fail or we 
- can use it to indicate that we want a new process. I'd prefer fail because then 
- there's no risk of someome making the mistake where they incorrectly add a main
- function to their file.
+ Multiple "main signatures" will produce a warning for now. I was tempted to start a
+ new process on every function with mains sig but there's a strong risk of someome 
+ making the mistake where they may unwitingly start proceses.
 
  The vm needs to load multiple object files into it and this means we need to have 
  a data structure to store each file... ideally this would be some sort of array 
  for fast lookup. The implementation we're working on uses an addressing scheme.
 
- It's interesting to note that the constant pool in Java starts at  index 1. I did 
- start this one at 0 but it's actually a PITA to program it like that so I'm adding 
- a dummy register at 0.
+ It's interesting to note that the constant pool in Java starts at index 1. I did
+ start this one at 0 but it's actually a PITA to program it like that in Casm so 
+ I'm adding a dummy register at 0.
 
  Strings: I like the idea of an internal constant table for the entire VM ie we 
  load the class and any constants already found in the main constant pool are 
@@ -556,10 +563,17 @@ void vm_loader(vm_obj *obj, CoolObj * cool_obj) {
    */
   vm_load_constant_pool(class, c_o);
 
+  /**
+   We'll track all the external addresses found in this queue.
+   */
+  CoolQueue * ext_addrs = cool_queue_new();
+
   for(size_t i = 0; i < class->con_count; i++) {
     if(class->constants[i].t == CoolFunctionId) {
       if(class->constants[i].func.ext == 1) {
-        printf("External address sig=%s\n", class->constants[i].u.str);
+        Creg * reg = &class->constants[i];
+        ext_addrs->ops->enque(ext_addrs, reg);
+        printf("External address sig?=%s\n", reg->u.str);
       }
     }
   }
@@ -569,7 +583,7 @@ void vm_loader(vm_obj *obj, CoolObj * cool_obj) {
   class->inst_count = vm_count_instructions(cool_obj);
 
   assert(class->func_count = c_o->func_count);
-  assert(class->inst_count > 4);
+  assert(class->inst_count > 0);
 
   class->bcode = calloc(1, class->inst_count * sizeof(CInst));
 
@@ -597,7 +611,7 @@ void vm_loader(vm_obj *obj, CoolObj * cool_obj) {
          of this call. Classes are actors, they'll receive a message that they'll
          deliever to a particular local address. I think this is easier to reason 
          about now. It might be more performant to have the VM directly address 
-         every function though.
+         every function but this would make it harder to move code around.
          
          On loading an external it needs to already be in the system and addressable
          so we should ask for the address here.
@@ -619,9 +633,41 @@ void vm_loader(vm_obj *obj, CoolObj * cool_obj) {
       instruction++;
     }
   }
-  assert(main_start_instruction != -1);
   assert(obj->ldr->main.cid != -1);
+  cool_obj_delete(cool_obj);
+  vm_load_externals(obj, ext_addrs);
+  cool_queue_delete(ext_addrs);
   //exit(1);
+}
+
+/**
+ When loading we need to know if the object has been loaded before.
+ */
+static void vm_load_externals(vm_obj *obj, CoolQueue *ext_addrs) {
+
+  char buf[COOL_VM_MAX_ADDRESS_LENGTH];
+
+  while(ext_addrs->ops->length(ext_addrs) > 0) {
+    Creg *reg = ext_addrs->ops->deque(ext_addrs);
+    assert(reg != NULL);
+    assert(reg->func.ext == 1);
+
+    assert(reg->u.str != NULL);
+    size_t ad_len = strlen(reg->u.str);
+    assert(ad_len < COOL_VM_MAX_ADDRESS_LENGTH);
+    memcpy(buf, reg->u.str, ad_len);
+
+    printf("Found External Class with address %s<\n", reg->u.str);
+    char * result = strstr(buf, "->");
+    assert(result != NULL);
+    size_t position = result - buf;
+    assert(position < COOL_VM_MAX_ADDRESS_LENGTH);
+    buf[position] = '\0';
+    printf("Found External Class with name %s\n", buf);
+    load_class(obj, buf);
+    //int substringLength = strlen(str) - position;
+    //assert()
+  }
 }
 
 /**
@@ -1101,6 +1147,37 @@ C_INLINE void CALLOP_RET(stk_frame *f) {
   stk_frame_delete(f);
 }
 
+/**
+
+ The send function is central to message passing. It needs to do the following
+
+ create a message with 
+   Reciever address.
+   return address.
+   data to send.
+ Send Message
+
+ Message sending is somepletely asynchronous ie once it's done we increment 
+ instruction pointer return.
+ */
+
+C_INLINE void CALLOP_SEND(stk_frame *f) {
+  print_in(f);//print_op("op_ret", f->pc);
+  REGA;
+  REGB;
+  REGC;
+  REGRS;
+  /** \todo we need to name the register. */
+  //printf("rc=%hhu\n",rc);
+  printf("rS=%hu\n",rs);
+  printf("str=%s\n", f->g->constants[rs].u.str);
+
+  printf("str=%s\n", f->g->vm->ldr->classes[0].constants[rs].u.str);
+  //f->r[ra].u.ui = f->g->constants[rc].u.ui;
+  f->pc++;
+  //print_op("OP_SUB\n", f->pc); assert(1 == 2);
+}
+
 C_INLINE void CALLOP_SET(stk_frame *f) {
   print_in(f);//print_op("op_ret", f->pc);
   REGA;
@@ -1281,6 +1358,8 @@ uint32_t cool_vm_cinst_new(CoolOp op,
     case OP_JMP:
       in.arr[0] = op; in.s.ra = ra; in.s.rs = rs;break;
     case OP_CALL:
+      in.arr[0] = op; in.s.ra = ra; in.s.rs = rs;break;
+    case OP_SEND:
       in.arr[0] = op; in.s.ra = ra; in.s.rs = rs;break;
     case OP_ADD:
       in.arr[0] = op; in.bytes.ra = ra; in.bytes.rb = rb;in.bytes.rc = rc;break;

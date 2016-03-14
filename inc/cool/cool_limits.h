@@ -1,6 +1,4 @@
-/**
- \file
-*/
+/** \file */
 #ifndef COOL_LIMITS_H
 #define COOL_LIMITS_H
 
@@ -8,6 +6,12 @@
  Casm file extension
  */
 #define COOL_ASM_FILE_EXT ".asm"
+
+
+/**
+ Maximum symbol length. This includes things like addresses.
+ */
+#define COOL_SYM_LENGTH_LIMIT 128
 
 
 /**
@@ -74,11 +78,11 @@
  The concat funtion takes a (Double, String) and returns a (Double), size
  is 15 strlen() + \0 
  */
+#define COOL_MAX_OBJECT_METHOD_SIGNATURE 32
 
-#define COOL_MAX_OBJECT_METHOD_SIGNATURE 24
-
-/* Max code in method ie instruction count. */
-
+/** 
+ Max code in method ie instruction count.
+ */
 #define COOL_MAX_OBJECT_METHOD_SIZE 1024
 
 
@@ -97,7 +101,7 @@
 /**
  Max OS threads that can be created.
  */
-#define COOL_MAX_OS_THREADS 16
+#define COOL_MAX_OS_THREADS 4
 
 /**
  How many registers does out default VM have?
@@ -117,6 +121,11 @@
  we'll see.
  */
 #define COOL_VM_ADDRESS_BOOK_INIT_SIZE 1024
+/**
+ Max address and max signature are related. What people would normally associate
+ with a message signature is going to be an address in the VM
+ */
+#define COOL_VM_MAX_ADDRESS_LENGTH 64
 
 /**
  When we load classes if we need more memory how many do 

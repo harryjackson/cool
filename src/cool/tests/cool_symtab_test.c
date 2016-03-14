@@ -18,7 +18,7 @@ int main() {
   st->ops->add(st, bad , val_buff[10]);
   aa = st->ops->get(st, bad);
   assert(strcmp(aa->key, bad) == 0);
-
+  cool_symtab_delete(st);
   printf("ok");
   return 0;
 }

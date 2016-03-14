@@ -73,7 +73,7 @@ There's a decent paper [by Benjamin C. Pierce on pi-calcus using PICT
 here](http://www.dipmat.unict.it/~barba/PROG-LANG/PROGRAMMI-TESTI/READING-MATERIAL/TutorialPICT.pdf)
 
 I think if I could get a minimal message passing system working it would be an
-interesting projects to create a frontend based on one of th e pi-calculus
+interesting projects to create a frontend based on one of the pi-calculus
 variants and run it on the machine.
 
 
@@ -568,16 +568,41 @@ Haskell treats strings as lists.
 
 Where I find interesting articles I'll drop them in here...
 
+### Erlang {#erlang}
+
+I love the idea of Mnesia in Erlang. 
+
+[Found some BEAM docs here](http://www.cs-lab.org/historical_beam_instruction_set.html)
+
+
+### Go {#golang}
+
 [Simple article on Go's scheduler](https://morsmachine.dk/go-scheduler)
 [Go's scheduler implementation, might be out of date](https://docs.google.com/document/d/1TTj4T2JO42uD5ID9e89oa0sLKhJYD0Y_kqxDv3I3XMw/edit)
 [Paper on the Go Sheduler](http://www.cs.columbia.edu/~aho/cs6998/reports/12-12-11_DeshpandeSponslerWeiss_GO.pdf)
 
+### C/C++ {#cpp}
 
 [Great synospis of the different C++ compilers etc.](http://www.agner.org/optimize/calling_conventions.pdf)
-
 [Preprocessor reading](http://www.keithschwarz.com/cs106l/spring2009/handouts/080_Preprocessor_2.pdf)
-
 [Agner Fogs Optizations pages](http://www.agner.org/optimize/)
+
+
+### D {#dee}
+
+Anything by Walter Bright is worth reading
+[C's biggest mistake](http://www.drdobbs.com/architecture-and-design/cs-biggest-mistake/228701625)
+[So you want to write your own language](http://www.drdobbs.com/architecture-and-design/so-you-want-to-write-your-own-language/240165488?queryText=walter)
+[Speeding up the D Compiler. I loved how he tacked malloc](http://www.drdobbs.com/cpp/increasing-compiler-speed-by-over-75/240158941?queryText=walter)
+
+### Java {#java}
+
+Good reading on C2. I think the important ones are the list where the flaws
+actually got fixed ie they were considered bad enough to have something done
+about them.
+[Java Design Flaws](http://c2.com/cgi/wiki?JavaDesignFlaws)
+
+### Intermediate representations {#intermediate} 
 
 [C-- Interesting intermediate representation, I think it was adopted by Haskell](http://www.cs.tufts.edu/~nr/c--/extern/man2.pdf)
 
@@ -586,20 +611,10 @@ problems ie The cminusminus.org site has been hijacked by a spam website and oth
 haskell it seems to have died a death. I did find some code on github that mentions Quick 
 C--.
 
+### General {#ldgeneral} 
+
 [Calling Conventions Some work by Norman Ramsey and  Christian Lindig here](https://www.cs.tufts.edu/~nr/pubs/custom.pdf)
 
-Anything by Walter Bright is worth reading
-[C's biggest mistake](http://www.drdobbs.com/architecture-and-design/cs-biggest-mistake/228701625)
-[So you want to write your own language](http://www.drdobbs.com/architecture-and-design/so-you-want-to-write-your-own-language/240165488?queryText=walter)
-[Speeding up the D Compiler. I loved how he tacked malloc](http://www.drdobbs.com/cpp/increasing-compiler-speed-by-over-75/240158941?queryText=walter)
-
 [Research in Programming Languages](http://tagide.com/blog/academia/research-in-programming-languages/)
-
-Good reading on C2. I think the important ones are the list where the flaws
-actually got fixed ie they were considered bad enough to have something done
-about them.
-[Java Design Flaws](http://c2.com/cgi/wiki?JavaDesignFlaws)
-
-[Worse if better in software](http://www.dreamsongs.com/RiseOfWorseIsBetter.html)
-
+[Worse is better in software](http://www.dreamsongs.com/RiseOfWorseIsBetter.html)
 [Floating Point Numbers][http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html]

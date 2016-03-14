@@ -367,6 +367,12 @@ static size_t func_id(CoolObjFunc *c_func) {
   return f_obj->id;
 }
 
+/**
+ Take a queue and add each reg into a contigous area of memory ie this is just 
+ copying things to make it easier and faster to iterate over them later. 
+ If we miss a type we'll get a memory leak here so if we add a type make sure it 
+ also gets deallocated properly.
+*/
 static void obj_addConsts(CoolObj *c_obj, CoolQueue *q) {
   COOL_M_CAST_OBJ;
   assert(q != NULL);
@@ -387,16 +393,22 @@ static void obj_addConsts(CoolObj *c_obj, CoolQueue *q) {
            || reg->t == CoolObjectId
            || reg->t == CoolFunctionId
            || reg->t == CoolClassId
-           || reg->t == CoolObjectId
            );
 
     obj->const_regs[i] = *reg;
 
-    if(reg->t == CoolStringId || reg->t == CoolObjectId) {
-      //printf("s\n");
+    if(   reg->t == CoolStringId
+       || reg->t == CoolObjectId
+       || reg->t == CoolFunctionId
+       || reg->t == CoolClassId
+       )
+    {
+      /**
+       \todo I'm not a fan of this ie we're not deallocating everything this object
+       allocated. This means we have tight coupling between the two objects.
+       */
       assert(obj->const_regs[i].u.ptr == reg->u.ptr);
-      //obj->const_regs[i].u.ptr = reg->u.ptr;
-      free(reg->u.ptr);
+      //free(reg->u.ptr);
     }
     free(reg);
   }

@@ -28,7 +28,7 @@ typedef struct uint8_t CoolReg;
 #define LDK(a,b) {{ OP_LDK, a, (b & 0x00ff) , (b >> 8) }}
 
 typedef enum CoolOp {
-#define C_VM_OPS(op,id,str) op = id,
+#define C_VM_OPS(op,id,str,lcopstr) op = id,
 #include "cool/cool_vm_ops.h"
 #undef C_VM_OPS
 } CoolOp;
@@ -39,7 +39,7 @@ typedef struct CoolOpStrings {
 } CoolOpStrings;
 
 static CoolOpStrings OpStrings[] = {
-#define C_VM_OPS(op,id,str) { #str, op},
+#define C_VM_OPS(op,id,str,lcopstr) { #str, op},
 #include "cool/cool_vm_ops.h"
 #undef C_VM_OPS
 };

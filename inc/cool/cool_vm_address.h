@@ -1,3 +1,3 @@
-C_VM_ADDRESS(FUNC_addr , 0, FUNC_addr )
-C_VM_ADDRESS(CLASS_addr, 1, CLASS_addr)
+C_VM_ADDRESS(COOL_FUNC_addr , 0, COOL_FUNC_addr )
+C_VM_ADDRESS(COOL_CLASS_addr, 1, COOL_CLASS_addr)
 #undef C_VM_ADDRESS

@@ -64,7 +64,7 @@ static void test_push_pop(size_t alloc_count, size_t search_count) {
     CoolNode *found = list->ops->find(list, &size_t_find, n);
     if(found != NULL) {
       assert(memcmp((void*)n, (void*)found, 16) == 0);
-      printf("searched for %zu res == %zu\n", key_buff[s], *found);
+      //printf("searched for %zu res == %zu\n", key_buff[s], *found);
     }
     cool_node_delete(n);
   }
