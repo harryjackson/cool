@@ -3,22 +3,60 @@
 #define COOL_LIMITS_H
 
 /**
- Casm file extension
+ Magic number for casm file format and Major/Minor version
+*/
+
+#define COOL_OBJ_MAGIC_STRING "0xdaccaaa"
+#define COOL_OBJ_MAGIC 0xdaccaaa
+
+#define COOL_OBJ_MAJOR_STRING "0"
+#define COOL_OBJ_MAJOR 0x0000000
+
+#define COOL_OBJ_MINOR_STRING "1"
+#define COOL_OBJ_MINOR 0x0000001
+
+/**
+ Newlines are different based on OS.
+*/
+#define COOL_NEWLINE "\n"
+
+/**
+ This is the max size for any identifier ie variable names, function names
+ actor names etc. I expect to hit this at some point and hopefully trigger an
+ assert.
+ */
+#define COOL_PARSER_ID_LENGTH 31
+
+/**
+ Casm file extension. I'm using .asm at this time becasue the Vim syntax file 
+ almost works for what I need. I know I can set this in Vim and I will 
+ eventually.
  */
 #define COOL_ASM_FILE_EXT ".asm"
+#define COOL_ASM_FILE_EXT_LENGTH 4
 
+/**
+ Fake language extension. Note. Ruby's vim syntax file almost works.
+ :set syntax=ruby
+ */
+#define COOL_LANG_FILE_EXT ".cool"
+#define COOL_LANG_FILE_EXT_LENGTH 5
 
 /**
  Maximum symbol length. This includes things like addresses.
  */
 #define COOL_SYM_LENGTH_LIMIT 128
 
-
 /**
- \todo Class path. This is really only here for testing.
-  This needs to be part of configuration. For now it's where all 
- the test fixtures live.
- */
+ \todo Class path. This is really only here for testing. This needs to be part 
+ of configuration. For now it's where all the test fixtures live. By convention 
+
+ Log.cool == Cool Language file
+
+ Log.S    == generated casm file
+ 
+ log.asm == hand written casm test fixture.
+*/
 #define COOL_CLASS_PATH "/git/ghub/cool/src/cool/tests/asm"
 
 
@@ -151,6 +189,12 @@
  */
 
 #define COOL_MAX_VM_METHOD_CALLEE_REGISTERS     32
+
+
+/**
+ Arbitrary maximum local variables in a function.
+ */
+#define COOL_MAX_VM_FUNC_LOCALS 32
 
 
 #endif /* COOL_CONSTANTS_H */

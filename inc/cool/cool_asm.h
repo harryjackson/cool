@@ -19,7 +19,7 @@
 typedef struct CoolASM CoolASM;
 
 typedef struct CoolASMOps {
-  CoolObj  * (*parse   )(CoolASM * c_asm, CBuff * buf, const char *class_name);
+  CoolObj  * (*parse     )(CoolASM * c_asm, CBuff * buf, const char *class_name);
 } CoolASMOps;
 
 struct CoolASM {

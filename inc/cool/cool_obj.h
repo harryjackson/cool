@@ -2,6 +2,7 @@
 #ifndef COOL_OBJ_H
 #define COOL_OBJ_H
 #include "cool/cool_io.h"
+#include "cool/cool_limits.h"
 #include "cool/cool_queue.h"
 #include "cool/cool_types.h"
 #include <stdint.h>
@@ -9,10 +10,7 @@
 
 typedef union CInst CInst;
 
-#define COOL_OBJ_MAGIC_STRING "0xdaccaaa"
-#define COOL_OBJ_MAGIC 0xdaccaaa
-#define COOL_OBJ_MAJOR 0x0000000
-#define COOL_OBJ_MINOR 0x0000001
+
 
 typedef uint16_t cp_index_type;
 typedef uint8_t  cp_tag_type;

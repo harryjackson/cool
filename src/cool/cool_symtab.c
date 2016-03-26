@@ -1,4 +1,5 @@
 /**\file */
+#include "cool/cool_khash.h"
 #include "cool/cool_symtab.h"
 #include "cool/cool_uthash.h"
 #include <assert.h>
@@ -10,60 +11,56 @@
 #define COOL_M_COOL_SYMTAB                    \
 symtab_obj * obj = (symtab_obj*)c_symtab->obj;
 
-static int init = 0;
 static const char  * deedbeef      = "00deadbeef";
 static const size_t  deedbeef_size = 10;
 
+
+KHASH_MAP_INIT_STR(string, void*)
+
 typedef struct symtab_obj {
   int   scope;
-  sym * symt;
+  //sym * symt;
+  khash_t(string) *string_tab;
 } symtab_obj;
 
-static int    symtab_add(CoolSymtab *c_symtab, const char *key, void * val);
-static sym  * symtab_get(CoolSymtab *c_symtab, const char *key);
-static sym  * symtab_next(CoolSymtab *c_symtab);
-static void   symtab_delete(CoolSymtab *c_symtab, const char *key);
-static size_t symtab_size(CoolSymtab *c_symtab);
+static int     symtab_add(CoolSymtab *c_symtab, const char *key, void * val);
+static void  * symtab_get(CoolSymtab *c_symtab, const char *key);
+static void    symtab_visit(CoolSymtab *c_symtab, callback v);
+static void    symtab_delete(CoolSymtab *c_symtab, const char *key);
+static size_t  symtab_size(CoolSymtab *c_symtab);
 
 static CoolSymtabOps OPS = {
   .add    = symtab_add,
   .get    = symtab_get,
-  .next   = symtab_next,
+  .visit  = symtab_visit,
   .delete = symtab_delete,
   .size   = symtab_size
 };
 
-void cool_symtab_init() {
-  if(init == 0) {
-    init = 1;
-    //CoolSymtab * CIdentifiers = cool_symtab_new();
-    //CoolSymtab * CGlobals     = cool_symtab_new();
-    //CoolSymtab * CConstants   = cool_symtab_new();
-    //CoolSymtab * CTypes       = cool_symtab_new();
-    return;
-  }
-  printf("Should not call this twice");
-  assert(NULL);
-}
 
 CoolSymtab * cool_symtab_new() {
-  if(init == 0) {
-    cool_symtab_init();
-  }
-  assert(init == 1);
   CoolSymtab    * imp;
   symtab_obj    * obj;
 
   imp = calloc(1, sizeof(*imp));
   obj = calloc(1, sizeof(*obj));
 
-  obj->symt = NULL;
+  obj->string_tab = kh_init(string);
 
   imp->obj = obj;
   imp->ops = &OPS;
 
   return (CoolSymtab*)imp;
 }
+
+
+void cool_symtab_print(CoolSymtab *t, const void * a, void * b) {
+  const char * aa = a;
+  char       * bb = b;
+  printf("key:%s val:%s", aa, bb);
+  //printf(">key:%s\n", aa);
+}
+
 
 /**
  This routine will cause a memory leak because the item in the table have likely 
@@ -76,17 +73,7 @@ void cool_symtab_delete(CoolSymtab *c_symtab) {
   COOL_M_COOL_SYMTAB;
   //free(imp->obj->head);
   unsigned int sym_count;
-
-  sym * symbol;
-  sym * tmp;
-
-  HASH_ITER(hh, obj->symt, symbol, tmp) {
-    HASH_DEL(obj->symt, symbol);  /* delete; users advances to next */
-    free(symbol);            /* optional- if you want to free  */
-  }
-  sym_count = HASH_COUNT(obj->symt);
-
-  assert(sym_count == 0);
+  kh_destroy(string, obj->string_tab);
   free(c_symtab->obj);
   free(c_symtab);
 }
@@ -94,63 +81,68 @@ void cool_symtab_delete(CoolSymtab *c_symtab) {
 static size_t symtab_size(CoolSymtab *c_symtab) {
   COOL_M_COOL_SYMTAB;
   size_t sym_count;
-  sym_count = HASH_COUNT(obj->symt);
+  sym_count = kh_size(obj->string_tab);
   return  sym_count;
- }
+}
 
 static void symtab_delete(CoolSymtab *c_symtab, const char *key) {
   COOL_M_COOL_SYMTAB;
-  sym * symbol = c_symtab->ops->get(c_symtab, key);
-  if(symbol != NULL) {
-    HASH_DEL(obj->symt, symbol);
-    free(symbol);
-  }
+  void * symbo = c_symtab->ops->get(c_symtab, key);
+  int k = kh_get(string, obj->string_tab, key);
+  kh_del(string, obj->string_tab, k);
 }
 
-static sym * symtab_next(CoolSymtab *c_symtab) {
+static void  symtab_visit(CoolSymtab *c_symtab, callback visitor_func) {
   COOL_M_COOL_SYMTAB;
-  unsigned int sym_count;
-  sym_count = HASH_COUNT(obj->symt);
-  if(sym_count == 0) {
-    return NULL;
-  }
+  assert(obj->string_tab != NULL);
 
-  sym * symbol;
-  sym * tmp;
-  HASH_ITER(hh, obj->symt, symbol, tmp) {
-    HASH_DEL(obj->symt, symbol);
-    return symbol;
+  khiter_t k;
+  for (k = kh_begin(obj->string_tab); k != kh_end(obj->string_tab); ++k) {
+    if (kh_exist(obj->string_tab, k)) {
+      const char * key   = kh_key(obj->string_tab,k);
+      void * val   = kh_value(obj->string_tab, k);
+      assert(key != NULL);
+      assert(val != NULL);
+      //printf("key=>%s<\n", key);
+      //printf("val=>%s<\n", (char*)val);
+      //printf("key=%s  val=%d\n", (char *)key, (int *)val);
+      visitor_func(c_symtab, key, val);
+    }
   }
-  assert(NULL);
 }
 
 static int symtab_add(CoolSymtab *c_symtab, const char *key, void * val) {
   COOL_M_COOL_SYMTAB;
-  sym *s;
   size_t len = strlen(key);
+  assert(len > 0);
   assert(len < COOL_SYM_LENGTH_LIMIT);
 
-  //sym *tmp = obj->symt;
   int ret = 0;
-  HASH_FIND_STR(obj->symt, key, s);  /* id already in the hash? */
-  assert(s == NULL);
-
-  if (s == NULL) {
-    s = malloc(sizeof(*s));
-    memcpy(s->key, key, len);
-    s->key[len] = '\0';
-    s->val = val;
-    HASH_ADD_STR(obj->symt, key, s);  /* id: name of key field */
-    ret = 1;
+  void *p = symtab_get(c_symtab, key);
+  if(p == NULL) {
+    khiter_t k = kh_put(string, obj->string_tab, key, &ret);
+    printf("key=%s ret == %d\n", key, ret);
+    kh_value(obj->string_tab, k) = val;
+    //ret = 1;
+  }
+  else {
+    printf("key=%s already exists\n", key);
   }
   return ret;
 }
 
-static sym * symtab_get(CoolSymtab *c_symtab, const char *key) {
+static void * symtab_get(CoolSymtab *c_symtab, const char *key) {
   COOL_M_COOL_SYMTAB;
-  sym *s = NULL;
   size_t len = strlen(key);
-  assert(len < COOL_SYM_LENGTH_LIMIT);
-  HASH_FIND_STR(obj->symt, key, s);
-  return s;
+  if(len == 0 || len > COOL_SYM_LENGTH_LIMIT) {
+    fprintf(stderr, "Key passed to symtag_get length = %zu\n", len);
+    abort();
+  }
+  khiter_t res = kh_get(string, obj->string_tab, key);
+  if (res == kh_end(obj->string_tab)) {  // k will be equal to kh_end if key not present
+    printf("Symtab no value...key: %s\n", key);
+    return NULL;
+  }
+  void * ret = kh_val(obj->string_tab, res);
+  return ret;
 }

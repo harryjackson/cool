@@ -424,6 +424,8 @@ polluted.
 
 Please have a look at Go's scheduling mechanism. 
 
+[CSP Book](http://www.usingcsp.com/cspbook.pdf)
+
 ## Optimization {#optimization}
 
 I'm not concerned about optimizing the code or adding it to the VM now but I'll
@@ -543,9 +545,30 @@ file := try:File("/badfilepath.txt").(/dev/null);
 
 ````
 
-## FE Language Design notes
+## Language Design notes
 
 The following is just a list of ideas on the FE design.
+
+### Rules
+
+I'm going to list rules etc here that I've found from various people 
+on this topic. 
+
+The following three came from Joe Armstrong...
+
+1. What you get right, nobody mentions it. 
+2. What you get wrong, people bitch about.
+3. What is difficult to understand you have to explain to people over and over
+   again.
+
+The first two look very similar this... 
+
+"There are only two kinds of programming languages: those people always bitch
+about and those nobody uses.   -- Bjarne Stroustrup
+
+I'm not sure if Joe or Bjarne said it first. Earlier references seem to suggest
+Bjarne.
+
 
 ### Inbuilt types
 
@@ -556,6 +579,15 @@ The following is just a list of ideas on the FE design.
 ### Regexes
 
 I love Perl's regex's.
+
+### Shadowing
+  
+To make things easier I'm going to disallow it for now. 
+
+[Shadowing](http://lambda-the-ultimate.org/node/4885)
+[Old Post on it](http://lists.ccs.neu.edu/pipermail/prl/2005q2/000968.html)
+
+Personally I have been bitten by it but
 
 ### Notes
 
@@ -618,3 +650,10 @@ C--.
 [Research in Programming Languages](http://tagide.com/blog/academia/research-in-programming-languages/)
 [Worse is better in software](http://www.dreamsongs.com/RiseOfWorseIsBetter.html)
 [Floating Point Numbers][http://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html]
+[CCured looks interesting](http://scottmcpeak.com/)
+
+# Some Light Reading, some of which might be profound...
+
+[Comp Sci Quotes](http://www.linfo.org/q_programming.html)
+
+

@@ -1,7 +1,7 @@
 /**\file */
 #include "cool/cool_list.h"
 #include "cool/cool_node.h"
-#include "cool/cool_hash_node.h"
+//#include "cool/cool_hash_node.h"
 #include <cool/cool_murmur3.h>
 
 #include <apr-1/apr_pools.h>

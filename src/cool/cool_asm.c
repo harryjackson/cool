@@ -67,9 +67,11 @@ typedef struct asm_obj {
 
 
 static CoolObj * asm_compile(CoolASM * c_asm, CBuff *buf, const char *class_name);
-//static tok     * token(asm_obj * obj);
+static tok     * token(asm_obj * obj);
 static void      parse(asm_obj * obj);
 static void      compile(asm_obj * obj);
+
+static void print_to_newline(asm_obj * obj);
 
 static void      parse_global_constants(asm_obj *obj);
 static int       tok_peek(asm_obj * obj, tid id);
@@ -195,6 +197,7 @@ static int tok_eat(asm_obj *obj, tid id) {
   if(T.id != id) {
     char err[64];
     snprintf(err, sizeof(err), "Expecting token: %s, got %s:", tok_details[id].name, tok_details[T.id].name);
+    print_to_newline(obj);
     asm_print_error(obj, err);
   }
   obj->line_no  = T.l_no;
@@ -270,7 +273,7 @@ static void tok_eat_line(asm_obj * obj){
   obj->line_pos = obj->pos;
 }
 
-static void print_to_newline(asm_obj * obj){
+static void print_to_newline(asm_obj * obj) {
   size_t i = 0;
   size_t pos = obj->line_pos;
   while(pos < obj->buf->size && obj->buf->mem.b8[pos] != '\n') {
@@ -452,6 +455,63 @@ static CoolObj * asm_compile(CoolASM * c_asm, CBuff *buf, const char *class_name
   return obj->class;
 }
 
+
+static void parseLang(asm_obj *obj) {
+  tok *t;
+  size_t line = 2;
+  while((t = token(obj)) != T_NULL) {
+    assert(t != NULL);
+    obj->tok_q->ops->enque(obj->tok_q, t);
+    printf("tok: %s\n", tok_details[t->id].name);
+  }
+
+}
+
+
+static void parse(asm_obj *obj) {
+  tok *t;
+  size_t line = 2;
+  while((t = token(obj)) != T_NULL) {
+    //printf("tok: %s\n", tok_details[t->id].name);
+    assert(t != NULL);
+    obj->tok_q->ops->enque(obj->tok_q, t);
+  }
+
+  //return;
+  //Reset positions
+  obj->line_no  = 2;
+  obj->pos      = 0;
+  obj->line_pos = obj->pos;
+
+  while((t = tok_next(obj)) != NULL) {
+    tok T = *t;
+    free(t);
+    //print_to_newline(obj);
+    //printf("tok: %s\n", tok_details[t->id].name);
+    //printf("Found token pos: %zu\n", t->pos);
+    //printf("%.*s\n", t->len, &obj->buf->mem.b8[t->pos]);
+    tid id   = T.id;
+    obj->pos = T.pos;
+
+    switch(id) {
+      case T_CONSTANTS:
+        parse_constants(obj);
+        break;
+        ;
+      case T_METHODS:
+        parse_methods(obj);
+        break;
+        ;
+      case T_BYTECODE:
+        parse_bytecode(obj);
+        break;
+        ;
+    }
+    //asm_print_error(obj, "Unrecognized statement in parse");
+  }
+}
+
+
 static tok * token(asm_obj * obj) {
   if(obj->pos >= obj->buf->size) {
     return T_NULL;
@@ -536,48 +596,6 @@ static tok * token(asm_obj * obj) {
 }
 
 
-static void parse(asm_obj *obj) {
-  tok *t;
-  size_t line = 2;
-  while((t = token(obj)) != T_NULL) {
-    //printf("tok: %s\n", tok_details[t->id].name);
-    assert(t != NULL);
-    obj->tok_q->ops->enque(obj->tok_q, t);
-  }
-
-  //return;
-  //Reset positions
-  obj->line_no  = 2;
-  obj->pos      = 0;
-  obj->line_pos = obj->pos;
-
-  while((t = tok_next(obj)) != NULL) {
-    tok T = *t;
-    free(t);
-    //print_to_newline(obj);
-    //printf("tok: %s\n", tok_details[t->id].name);
-    //printf("Found token pos: %zu\n", t->pos);
-    //printf("%.*s\n", t->len, &obj->buf->mem.b8[t->pos]);
-    tid id   = T.id;
-    obj->pos = T.pos;
-
-    switch(id) {
-      case T_CONSTANTS:
-        parse_constants(obj);
-        break;
-        ;
-      case T_METHODS:
-        parse_methods(obj);
-        break;
-        ;
-      case T_BYTECODE:
-        parse_bytecode(obj);
-        break;
-        ;
-    }
-    //asm_print_error(obj, "Unrecognized statement in parse");
-  }
-}
 
 static void add_string_const(asm_obj *obj) {
   assert(NULL);

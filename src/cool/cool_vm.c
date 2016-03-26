@@ -86,11 +86,15 @@ typedef uint64_t pid;
 */
 typedef struct Class {
   class_id     cid;
+  char         namespace[COOL_MAX_NAMESPACE_SIZE];
+  char         name[COOL_MAX_OBJECT_METHOD_NAME_SIZE];
   CoolQueue  * inbox;
   vm_address * addr;
   vm_obj     * p_vm;
   size_t       con_count;
   Creg       * constants;
+  size_t       field_count;
+  Creg       * fields;
   size_t       func_count;
   func_id      func_index[COOL_MAX_OBJECT_METHOD_COUNT];
   func_obj   * funcs;
@@ -676,9 +680,18 @@ static void vm_load_externals(vm_obj *obj, CoolQueue *ext_addrs) {
  */
 static void vm_start(CoolVM *c_vm) {
   COOL_M_CAST_VM;
+
+  size_t i     = 0;
   size_t calls = 0;
 
+
+  for(i = 0; i < obj->ldr->pos; i++) {
+    Class class = obj->ldr->classes[i];
+    printf("Found class %s in position %zu", class.name, i);
+  }
+
   Main main   = obj->ldr->main;
+  assert(main.cid == 0);
   Class class = obj->ldr->classes[main.cid];
   class.pc    = main.pc;
 
@@ -1068,6 +1081,15 @@ void CALLOP_MOV(stk_frame *f) {
   f->pc++;
 }
 
+C_INLINE
+void CALLOP_NEW(stk_frame *f) {
+  print_in(f);//print_op("op_mov", f->pc);
+  REGA;
+  REGB;
+  assert(f->r[ra].t == f->r[rb].t);
+  memcpy(&f->r[ra].u, &f->r[rb].u, sizeof(f->r[ra].u));
+  f->pc++;
+}
 
 C_INLINE void CALLOP_POW(stk_frame *f) {
   print_in(f);
@@ -1123,17 +1145,12 @@ void CALLOP_MUL(stk_frame *f) {
 
 C_INLINE
 void CALLOP_PRECALL(stk_frame *f) {
-  print_in(f);//print_op("op_precall", f->pc);
-  //memcpy(&f->r[], &f->r[0], sizeof(f->r[0]) * 8);
-  //op_halt(v);
-  f->pc++;
+  print_in(f);assert(1==2);
 }
 
 C_INLINE
 void CALLOP_POSTCALL(stk_frame *f) {
-  print_op("op_postcall", f->pc);
-  //memcpy(v->r, f->r, sizeof(v->r[0]) * 8);
-  f->pc++;
+  print_in(f);assert(1==2);
 }
 
 C_INLINE void CALLOP_RET(stk_frame *f) {
@@ -1148,11 +1165,10 @@ C_INLINE void CALLOP_RET(stk_frame *f) {
 }
 
 /**
-
  The send function is central to message passing. It needs to do the following
 
- create a message with 
-   Reciever address.
+ Create a message with
+   Receiver address.
    return address.
    data to send.
  Send Message
@@ -1343,10 +1359,15 @@ uint32_t cool_vm_cinst_new(CoolOp op,
                            uint8_t rc,
                            uint16_t rs,
                            uint16_t callee_id) {
-  assert(rb >= 0 && rb <= 255);
-  assert(rc >= 0 && rc <= 255);
+  /** 16 register machine. This is here to catch some errors. We can
+   increase this when needed but now I like it low. */
+  assert(rb >= 0 && rb <= 16);
+  assert(rc >= 0 && rc <= 16);
 
   assert(callee_id >= 0 && callee_id < COOL_MAX_OBJECT_METHOD_COUNT);
+
+  /** I'm not expecting to need a big rs value soon. This might catch some errors */
+  assert(rs >= 0 && rs < 64);
   CInst in;
   in.i32 = 0;
   if(op == OP_CALL) {

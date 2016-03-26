@@ -4,7 +4,7 @@
 #include "cool/cool_list.h"
 #include "cool/cool_hash_node.h"
 #include "cool/cool_symtab.h"
-#include cool/"cool_utils.h"
+#include "cool/cool_utils.h"
 #include <pthread.h>
 #include <assert.h>
 #include <stdio.h>
@@ -13,16 +13,19 @@
 
 int main() {
   size_t i = 0;
-  assert( strcmp(TNames[T_PAREN_L].name, "PAREN_L") == 0);
-  assert( strcmp(TNames[T_UNKNOWN].name, "UNKNOWN") == 0);
-  assert( strcmp(TNames[T_WSPACE].name , "WSPACE" ) == 0);
+
+  printf("%s",TNames[T_PAREN_L].name);
+  assert( strcmp(TNames[T_PAREN_L].name, "T_PAREN_L") == 0);
+  assert( strcmp(TNames[T_UNKNOWN].name, "T_UNKNOWN") == 0);
+  assert( strcmp(TNames[T_WSPACE].name , "T_WSPACE" ) == 0);
 
 
-  cool_symtab_init();
+  //cool_symtab_init();
   CoolLexer  * lex    = cool_lexer_new();
-  lex->ops->lexString(lex, "double f := (1 + 2 ) *  3 + (8 + 9);");
+  //lex->ops->lexString(lex, "double f := (1 + 2 ) *  3 + (8 + 9);");
+  lex->ops->lexFile(lex, "Log");
 
-  CoolParser * parser = cool_parser_new("/git/cool/build/.output/cool__code.c");
+  CoolParser * parser = cool_parser_new("/git/ghub/cool/build/.output/cool__code.S");
   CoolAST *ast = parser->ops->parse(parser, lex);
   //printf("k=%d\n", ast->ops->kind(ast));
   assert(ast != NULL);

@@ -1,5 +1,8 @@
 /**\file */
 #include "cool/cool_lexer.h"
+
+#include "cool/cool_ast.h"
+#include "cool/cool_limits.h"
 #include "cool/cool_queue.h"
 #include "cool/cool_shunt.h"
 #include "cool/cool_symtab.h"
@@ -12,10 +15,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+//static CoolSymtab * GLOB_SYMT = cool_symtab_new(SymStringVoid);
+
 #define COOL_M_CAST_PARSER            \
 parser_obj * obj = (parser_obj*)c_parser->obj;
 
 #define GEN_string(s) fwrite(s, 1, strlen(s), obj->fh_o)
+
+
+//static tok_in_scope(parser_obj * obj, CoolSymtab *symt, CoolToken *tok) {
+//  //void * symt->ops->get(symt, tok->ops->value(tok));
+//}
+
+
+#define TOK_IN_SCOPE(symt,tok) symt->ops->get(symt, tok->ops->value(tok)
+#define SYMT_TYPE(symt,key) assert(symt->ops->get(symt, key) != NULL)
+
 
 typedef enum {
   paren      = 1,
@@ -59,116 +74,6 @@ typedef enum {
   EXP_VAR,
 } exp_kind;
 
-typedef struct ast_bin_op        ast_bin_op;
-typedef struct ast_block         ast_block;
-typedef struct ast_call          ast_call;
-typedef struct ast_comp_stmt     ast_comp_stmt;
-typedef struct ast_declare       ast_declare;
-typedef struct ast_exp           ast_exp;
-typedef struct ast_proc          ast_proc; //no return
-typedef struct ast_una_op        ast_una_op;
-typedef struct ast_var           ast_var;
-typedef struct ast_obj           ast_obj;
-
-typedef struct ast_node {
-  ast_kind   kind;
-  void     * left;
-  void     * right;
-} ast_node;
-
-struct ast_una_op {
-  ast_kind  kind;
-  char    * operator;
-  ast_var * operand;
-};
-
-struct ast_var {
-  ast_kind  kind;
-  size_t   size;
-  char   * name;
-};
-
-struct ast_op {
-  ast_kind  kind;
-  char    * op;
-  ast_var * left;
-  ast_exp * right;
-};
-
-struct ast_call {
-  ast_kind   kind;
-  char     * name;
-//  struct exp_list * arguments;
-};
-
-struct ast_exp {
-  ast_kind ast_kind;
-  exp_kind exp_kind;
-  union {
-    double        dubExp;
-    int           intExp;
-    char        * strExp;
-    char        * varExp;
-    ast_var       var;
-//    ast_bin_op    bop;
-    ast_una_op    uop;
-  } exp;
-};
-
-typedef struct ast_stmt {
-  ast_kind   kind;
-  void     * ast_ptr;
-} ast_stmt;
-
-struct ast_declare {
-  ast_kind kind;
-  ast_var  * var;
-  ast_exp  * exp;
-};
-
-struct ast_comp_stmt {
-  ast_kind kind;
-  union {
-    ast_declare  * decl;
-    ast_exp      * exp;
-  } u;
-  ast_comp_stmt * next;
-};
-
-struct ast_obj {
-  ast_kind k;
-  union {
-    ast_comp_stmt * comp;
-    ast_declare   * decl;
-    ast_exp       * exp;
-  } u;
-  ast_obj * next;
-};
-
-static ast_obj * new_ast_obj(ast_kind k, void * tree) {
-  //CoolAST * ast = malloc(sizeof(CoolAST));
-  ast_obj * obj = malloc(sizeof(ast_obj));
-
-  obj->k   = k;
-  if(k == AST_COMPOUND) {
-    obj->u.comp = tree;
-  }
-  else if (k == AST_DECLARE) {
-    obj->u.decl = tree;
-  }
-  else if (k == AST_EXP) {
-    obj->u.exp = tree;
-  }
-  else if(k == AST_PROGRAM) {
-    obj->u.comp = NULL;
-  }
-  else {
-    printf("INVALID KIND %d\n", k);
-    abort();
-  }
-  return obj;
-}
-
 
 typedef struct parser_obj {
   uint32_t      hash;
@@ -176,21 +81,16 @@ typedef struct parser_obj {
   FILE        * fh_o;
   size_t        pos;
   size_t        line;
-  //size_t        stmt_count;
-  //CoolAST     * ast;
-  //ast_stmt    * stmt_list;
-  //Arbitrary limit of 64 statements in one
-  //file
-  ast_obj     * ast_obj;
-//  ast_tree      ast_tree_list[64];
+  CoolAst     * ast;
   CoolQueue   * q_st;
   const char  * orig;
   char        * stream;
   CoolLexer   * lex;
   CoolShunt   * shunt;
-  sym         * symt;
   CoolStack   * stk;
   scope       * scope;
+  CoolSymtab  * symtab;
+  CoolQueue   * used_toks;
   int           eof;
   int           err;
   char          errmsg[512];
@@ -202,67 +102,103 @@ typedef struct parser_impl {
 } parser_impl;
 
 static void        descend(parser_obj *obj);
+static void        descend2(parser_obj *obj);
+
 static CoolAST   * parser_parse(CoolParser *c_parser, CoolLexer *lex);
-static void        parser_print_ast(CoolParser *c_parser);
-static void        ast_to_string(ast_obj * ast, char *buff);
 
-static void        err(parser_obj *obj, char * msg);
-static CoolTokenId peek(parser_obj *obj);
 
-static void        parse_expression(parser_obj *obj);
-static void        display_shunt(parser_obj *obj);
+/** AST Printer routines with scope */
+static void ast_printer(parser_obj *obj, int scope);
+static void parser_print_ast(CoolParser *c_parser);
+static void ast_to_string(ast_tree * ast, char *buff);
+/************************************/
 
-static ast_declare * stmt_declare(parser_obj *obj, CoolToken *tok);
-static ast_declare * ast_declare_new(parser_obj *obj, ast_var *id, ast_exp *ex);
+
+static CoolId tokid_to_coolid(CoolTokenId tid);
+
+static void parse_expression(parser_obj *obj);
+static void display_shunt(parser_obj *obj);
+
+//static ast_declare * stmt_declare(parser_obj *obj, CoolToken *tok);
+//static ast_declare * ast_declare_new(parser_obj *obj, ast_var *id, ast_exp *ex);
+
+
+/** Parser tree building routines */
+//static ast_tree * new_ast_tree(ast_kind k, CoolSymtab *symt, CoolToken *tok);
+void              print_symtab(CoolSymtab *t, const void * a, void * b);
+
+
+static CoolAstPkg   * ast_add_package(parser_obj *obj);
+static CoolAstPkg   * ast_add_import(parser_obj *obj, CoolAstPkg *pkg);
+static CoolAstActor * ast_add_actor(parser_obj *obj, CoolAstPkg *pkg);
+
+static void ast_add_fields(parser_obj *obj, CoolAstActor *actor);
+static void ast_add_actor_func(parser_obj *obj, CoolAstActor *actor);
+static void ast_add_func_block(parser_obj *obj, CoolAstFunc  *func);
+
+//static ast_tree    * add_object_ref(parser_obj * obj, CoolToken *tok, CoolSymtab *symt);
+//static void ast_add_actor_func_signature(parser_obj *obj);
+//static void ast_add_block(parser_obj *obj);
+//static void ast_add_statement(parser_obj *obj);
+//static void ast_add_declaration(parser_obj *obj);
+//static void ast_add_expression(parser_obj *obj);
+//static void ast_add_factor(parser_obj *obj);
+/**********************************/
 
 
 static int       eat_ws(parser_obj *obj);
 static ast_exp * exp_new(parser_obj *obj);
-static ast_var * var_new(parser_obj *obj);
+//static ast_var * var_new(parser_obj *obj);
 
+static CoolTokenId   peek(parser_obj *obj);
 static CoolToken   * t(parser_obj *obj);
-static CoolTokenId   tid(CoolToken *tok);
+static CoolToken   * tt(parser_obj *obj, CoolTokenId tid);
+static CoolToken   * get_next_token_from_lexer(parser_obj *obj);
+static CoolTokenId   tok_id(CoolToken *tok);
+static void        * tok_value(CoolToken *tok);
+static int           isa_type(CoolTokenId tid);
+static void          str_copy_value(char *dest, CoolToken *tok);
+
+static void        err(parser_obj *obj, char * msg);
 
 static CoolParserOps PARSER_OPS = {
-  &parser_parse,
-  NULL,
-  NULL,
-  &parser_print_ast,
+  .parse     = parser_parse,
+  .get       = NULL,
+  .print     = NULL,
+  .print_ast = parser_print_ast,
 };
 
 CoolParser * cool_parser_new(const char *filename) {
 
   parser_impl   * imp;
   parser_obj    * obj;
-  CoolParserOps * ops;
 
   FILE * fh = fopen(filename, "wb+");
   if(fh == NULL) {
-    printf("fopen failed, errno = %d\n", errno);
+    fprintf(stderr, "fopen failed, errno = %s\n", strerror(errno));
+    abort();
   }
   assert(fh);
 
-  imp            = malloc(sizeof(*imp));
-  assert(imp);
-  obj            = malloc(sizeof(*obj));
+  imp            = calloc(1, sizeof(*imp));
+  obj            = calloc(1, sizeof(*obj));
   assert(obj);
-  ops            = &PARSER_OPS;
+  assert(imp);
 
-  obj->fh_o  = fh;
-
-  obj->symt  = NULL;
-  obj->shunt = cool_shunt_new();
-
+  obj->ast       = cool_ast_new();
+  obj->fh_o      = fh;
+  obj->shunt     = cool_shunt_new();
   obj->eof       = 0;
   obj->err       = 0;
   obj->stk       = cool_stack_new();
-  obj->ast_obj   = new_ast_obj(AST_PROGRAM, NULL);
-  ops->parse     = &parser_parse;
-  ops->print_ast = &parser_print_ast;
+  obj->symtab    = cool_symtab_new(SymStringVoid);
+  obj->used_toks = cool_queue_new();
 
   imp->obj = obj;
-  imp->ops = ops;
-  GEN_string("//cool_parser_new\n");
+  imp->ops = &PARSER_OPS;
+  GEN_string(";cool_parser_new");
+  GEN_string(COOL_NEWLINE);
+
 
   return (CoolParser*)imp;
 }
@@ -275,169 +211,559 @@ void cool_parser_delete(CoolParser *c_parser) {
   }
   GEN_string("//cool_parser_delete\n");
 
-  /* Walk AST TREE and deallocate it! */
-  //
-
+  /**
+   \todo Walk AST TREE and deallocate it!
+   Or do what Wlater Bright did with D and create a custom arena and deallocate the
+   whole thing in one call, faster and likely less buggy
+   */
+  while(obj->used_toks->ops->length(obj->used_toks) > 0) {
+    CoolToken *tok = obj->used_toks->ops->deque(obj->used_toks);
+    cool_token_delete(tok);
+  }
   cool_stack_delete(obj->stk);
   cool_shunt_delete(obj->shunt);
+  cool_symtab_delete(obj->symtab);
   free(c_parser->obj);
   free(c_parser);
-
 }
 
-static void parser_print_ast(CoolParser *c_parser) {
-  COOL_M_CAST_PARSER;
-  printf("asdasdasd\n");
-  size_t st_count = 0;
-  char buff[128] = {0};
-  ast_obj * ao = obj->ast_obj;
-  while(ao != NULL) {
-    ast_obj * prev = ao;
-    ast_to_string(ao, buff);
-    printf("st_count = %zu >%s<\n", st_count, buff);
-    st_count++;
-    ao = ao->next;
-  }
+
+void print_symtab(CoolSymtab *t, const void * a, void * b) {
+  const char * aa = a;
+  char       * bb = b;
+  printf("key:%s val:%s", aa, bb);
+  //printf(">key:%s\n", aa);
 }
 
-static void ast_to_string(ast_obj * ast, char buff[]) {
-  if(ast->k == AST_PROGRAM) {
-    memcpy(buff, "Program", strlen("Program"));
-  }
-  if(ast->k == AST_DECLARE) {
-    memcpy(buff, "Declare", strlen("Declare"));
-  }
-  else {
-    memcpy(buff, "Unkown", strlen("Unknown"));
-  }
-}
-
+//static char * new_sym_key(const char *key) {
+//  assert(strlen(key) < COOL_SYM_LENGTH_LIMIT);
+//  return strdup(key);
+//}
 
 static CoolAST * parser_parse(CoolParser *c_parser, CoolLexer *lex) {
   COOL_M_CAST_PARSER;
-  GEN_string("//cool_parser_parse\n");
-  //obj->scope->level = 0;
-  //obj->scope->
+  GEN_string(COOL_OBJ_MAGIC_STRING);
+  GEN_string(COOL_NEWLINE);
+  GEN_string(COOL_OBJ_MAJOR_STRING);
+  GEN_string(COOL_NEWLINE);
+  GEN_string(COOL_OBJ_MINOR_STRING);
+  GEN_string(COOL_NEWLINE);
+  GEN_string(";cool_parser_parse started");
+  GEN_string(COOL_NEWLINE);
+  GEN_string(".constants");
+  GEN_string(COOL_NEWLINE);
+  GEN_string(";THIS IS A GENERATED FILE.... DO NOT EDIT");
+  GEN_string(COOL_NEWLINE);
+
   obj->lex    = lex;
   obj->pos    = 0;
-  descend(obj);
-  return (CoolAST*)obj->ast_obj;
+  descend2(obj);
+  return (CoolAST*)obj->ast;
 }
 
-static void descend(parser_obj *obj) {
+#define EXPECT(tid) do {                                                          \
+CoolTokenId exp_tid = peek(obj);                                                \
+if(exp_tid != tid) {                                                            \
+CoolToken *tok = t(obj);                                                      \
+fprintf(stderr, "Expecting %s ... Got %s with value: %s\n",                   \
+TNames[tid].name, TNames[exp_tid].name,                      \
+tok->ops->value(tok));                                        \
+assert(NULL);                                                                 \
+}                                                                               \
+eat_ws(obj);                                                                    \
+} while(0);
 
-  GEN_string("//cool_descend\n");
-  size_t ops = 0;
-  CoolToken *tok;
-  while((tok = t(obj)) != NULL) {
-    CoolTokenId tid = tok->ops->type(tok);
+#define EXPECT_EAT(tid) do {                                   \
+eat_ws(obj);                                                   \
+EXPECT(tid);                                                   \
+t(obj);                                                        \
+eat_ws(obj);                                                   \
+} while(0);
 
-    printf("tokname=%s\n", tok->ops->name(tok));
-    if(tid == T_DOUBLE) {
-      if(peek(obj) == T_WSPACE) {
-        printf("stmt_declare:\n");
-        ast_declare * tmp = stmt_declare(obj, tok);
-        obj->ast_obj->next = new_ast_obj(AST_DECLARE, tmp);
-      }
-    }
-    /*
-     switch(tid) {
-     case T_DECLARE: stmt_declare(obj, tok);break;
-     default: {
-     printf("tokname=%s\n", tok->ops->name(tok));
-     abort();
-     };
-     }*/
-    if(ops++ > 50) {
-      //print_toks(obj);
-      printf(">%s\n", obj->stream);
-      printf("inf loop detected\n");
+
+#define PRINT_TOK(str, tok) do {                                   \
+fprintf(stderr, str, (char *)tok->ops->value(tok));         \
+} while(0);
+
+
+static void exp_str(parser_obj *obj, const char str[]) {
+  CoolToken *tok = t(obj);
+  char *v = (char *)tok->ops->value(tok);
+  size_t exp_len = strlen(str);
+  size_t i = 0;
+  for(i = 0; i < exp_len; i++) {
+    if(v[i] != str[i]) {
+      fprintf(stderr, "Expecting:%s< ... Got :>%*s<\n", str, (int) exp_len, v);
       assert(NULL);
     }
   }
+  printf("%s\n", v);
+  eat_ws(obj);
 }
 
-static ast_declare * stmt_declare(parser_obj *obj, CoolToken *tok) {
-  CoolTokenId id = tid(tok);
-  assert(id == T_DOUBLE || id == T_INT);
-  eat_ws(obj);
 
-  ast_var     * vv  = var_new(obj);
-  ast_exp     * exp = NULL;
-  eat_ws(obj);
-  if(peek(obj) == T_ASSIGN) {
-    CoolToken *tass = t(obj);
-    assert(tass->ops->type(tass) == T_ASSIGN);
-    parse_expression(obj);
-    ast_exp *ex = exp_new(obj);
-    return ast_declare_new(obj, vv, ex);
+static CoolAstPkg * ast_add_package(parser_obj *obj) {
+  EXPECT(T_ID);
+  exp_str(obj, "package");
+  CoolToken *tok = t(obj);
+
+  CoolAstPkg * pkg = obj->ast->ops->new_pkg(obj->ast, tok_value(tok));
+  PRINT_TOK("package->%s;\n", tok);
+  EXPECT_EAT(T_SEMI);
+  return pkg;
+}
+
+static CoolAstPkg * ast_add_import(parser_obj *obj, CoolAstPkg *pkg) {
+  exp_str(obj, "import");
+  EXPECT_EAT(T_PAREN_L);
+  EXPECT(T_STRING);
+
+  //ast_tree  *ast_o = new_ast_tree(AST_IMPORT, obj->ast_tree->symt, NULL);
+  //ast_o->u.import = calloc(1, sizeof(ast_import));
+
+  //printf("sizeof %zu\n", sizeof(ast_tree));
+
+  while(peek(obj) != T_PAREN_R) {
+    EXPECT(T_STRING);
+    CoolToken *tok = t(obj);
+
+    char * name    = tok->ops->value(tok);
+    size_t str_len = strlen(name);
+    assert(str_len > 0);
+    assert(str_len < COOL_PARSER_ID_LENGTH);
+    pkg->ops->new_import(pkg, name);
+//    if(SYM_EXISTS(ast_o->symt, name)) {
+//      fprintf(stderr, "Sym: %s already exists\n", name);
+//    }
+//    memcpy(ast_o->n.import.name, name, str_len);
+//    printf("name=%s has length %zu\n", name, str_len);
+//    ast_o->n.import.name[str_len] = '\0';
+//    assert(strlen(ast_o->n.import.name) > 0);
+
+    //obj->symtab->ops->add(obj->symtab, ast_o->n.import.name, ast_o);
+
+    EXPECT_EAT(T_SEMI);
   }
-  assert(NULL);
+
+  EXPECT_EAT(T_PAREN_R);
+  EXPECT_EAT(T_SEMI);
+  return pkg;
+}
+
+static void assert_symtab_globally_unique_id(parser_obj *obj, CoolSymtab *symt, char *key) {
+  if(! symt->ops->get(symt, key)) {
+    // *up;
+    //while((up = symt->ops->get(symt, __SYM_TABLE_UP_KEY)) != NULL) {
+
+    //}
+    printf("Symbol: %s  is not unique, see design about shadowing in docs", key);
+    assert(NULL);
+  }
+}
+
+/**
+ Shadowing: Design Decision see main page
+ */
+static void assert_symtab_unique_id(parser_obj *obj, CoolSymtab *symt, char *key) {
+  if(symt->ops->get(symt, key)) {
+    printf("Symbol: %s  is not unique, see design about shadowing in docs", key);
+    assert(NULL);
+  }
+}
+
+static CoolAstActor * ast_add_actor(parser_obj *obj, CoolAstPkg *pkg) {
+
+  exp_str(obj, "Actor");
+  EXPECT(T_ID);
+  CoolToken *tok = t(obj);
+
+  CoolAstActor *actor = pkg->ops->new_actor(pkg, tok_value(tok));
+
+  //obj->symtab->ops->add(obj->symtab, ast_a->n.actor.name, ast_a);
+
+  PRINT_TOK("actor->%s;\n", tok);
+  EXPECT_EAT(T_CURLY_L);
+  ast_add_fields(obj, actor);
+  if(peek(obj) == T_FUNC) {
+    ast_add_actor_func(obj, actor);
+  }
+  return actor;
+}
+
+static void str_copy_value(char *dest, CoolToken *tok) {
+  char * src =tok->ops->value(tok);
+  assert(strlen(src) < COOL_PARSER_ID_LENGTH);
+  strcpy(dest, src);
+}
+
+//static ast_tree * parse_decl(parser_obj *obj, CoolSymtab *symt) {
+//  EXPECT(T_ID);
+//  assert(peek(obj) == T_ID);
+//
+//  CoolToken   * tok = t(obj);
+//
+//  assert_symtab_unique_id(obj, symt, tok_value(tok));
+//
+//  CoolTokenId   tid = tok->ops->type(tok);
+//
+//  ast_tree *decl = new_ast_tree(AST_DECLARE, symt, tok);
+//
+//  char *v = tok->ops->value(tok);
+//  //str_copy_value(decl->n.decl.name, tok);
+//
+//  EXPECT_EAT(T_COLON);
+//
+//  tok = t(obj);
+//  tid = tok_id(tok);
+//
+//  assert(isa_type(tid));
+//  assert(tid == T_TYPE_INT || tid == T_TYPE_DOUBLE || tid == T_TYPE_STRING);
+//
+////  switch(tid) {
+////    case T_TYPE_INT: {
+////      decl->n.decl.type = CoolIntegerId;
+////    }break;
+////    case T_TYPE_DOUBLE:  {
+////      decl->n.decl.type = CoolDoubleId;
+////    }break;
+////    case T_TYPE_STRING:  {
+////      decl->n.decl.type = CoolStringId;
+////    }break;
+////  }
+//  return decl;
+//}
+
+static CoolId tokid_to_coolid(CoolTokenId tid) {
+  switch(tid) {
+    case T_TYPE_INT: {
+      return CoolIntegerId;
+    };
+    case T_TYPE_DOUBLE:  {
+      return CoolDoubleId;
+    };
+    case T_TYPE_STRING:  {
+      return CoolStringId;
+    };
+  }
+  abort();
+}
+
+static void parse_field(parser_obj *obj, CoolAstActor *actor) {
+  EXPECT(T_ID);
+  
+  CoolToken   * tok = t(obj);
+  CoolTokenId   tid = tok->ops->type(tok);
+
+  char *field_name = tok->ops->value(tok);
+
+  EXPECT_EAT(T_COLON);
+
+  tok = t(obj);
+  tid = tok_id(tok);
+
+  assert(isa_type(tid));
+  assert(tid == T_TYPE_INT || tid == T_TYPE_DOUBLE || tid == T_TYPE_STRING);
+
+    switch(tid) {
+      case T_TYPE_INT: {
+        actor->ops->new_field(actor, field_name, CoolIntegerId);
+      }break;
+      case T_TYPE_DOUBLE:  {
+        actor->ops->new_field(actor, field_name, CoolDoubleId);
+      }break;
+      case T_TYPE_STRING:  {
+        actor->ops->new_field(actor, field_name, CoolStringId);
+      }break;
+    }
+}
+
+
+static void ast_add_fields(parser_obj *obj, CoolAstActor *actor) {
+  eat_ws(obj);
+  CoolTokenId tid = peek(obj);
+  if(tid == T_FUNC || tid == T_CURLY_R) {
+    return;
+  }
+
+  parse_field(obj, actor);
+  //ast_tree *decl = parse_decl(obj, act->symt);
+  //assert_symtab_unique_id(obj, act->symt, decl->n.decl.name);
+  //act->symt->ops->add(act->symt, decl->n.decl.name, decl);
+  if(peek(obj) == T_SEMI) {
+    EXPECT_EAT(T_SEMI);
+  }
+  //act->n.actor.fields->ops->add(act->n.actor.fields, decl);
+  ast_add_fields(obj, actor);
+  printf("asdasd\n");
+}
+
+static void parse_arg(parser_obj *obj, CoolAstFunc *func) {
+  CoolToken   * tok;
+  CoolTokenId   tid = peek(obj);
+
+  if(tid == T_PAREN_R) {
+    return;
+  }
+  EXPECT(T_ID);
+  tok = t(obj);
+  char *arg_name = tok_value(tok);
+  EXPECT_EAT(T_COLON);
+
+  tok = t(obj);
+  CoolId type = tokid_to_coolid(tok_id(tok));
+  func->ops->new_arg(func, arg_name, type);
+  parse_arg(obj, func);
+}
+
+static void ast_add_actor_func(parser_obj *obj, CoolAstActor *act) {
+  eat_ws(obj);
+  CoolToken   * tok;
+  CoolTokenId   tid = peek(obj);
+  if(tid == T_ID || tid == T_CURLY_R) {
+    return;
+  }
+  EXPECT_EAT(T_FUNC);
+
+  /**
+   func (l) ...
+   */
+  EXPECT_EAT(T_PAREN_L);
+
+  tok = tt(obj, T_ID);
+  tid = tok_id(tok);
+
+  char *object_ref = tok_value(tok);
+
+  EXPECT_EAT(T_PAREN_R);
+
+  tok = tt(obj, T_ID);
+  tid = tok_id(tok);
+
+  char *func_name = tok_value(tok);
+
+  CoolAstFunc *func = act->ops->new_func(act, object_ref, func_name);
+
+  EXPECT_EAT(T_PAREN_L);
+  while(peek(obj) == T_ID) {
+    parse_arg(obj, func);
+  }
+  EXPECT_EAT(T_PAREN_R);
+
+  EXPECT_EAT(T_PAREN_L);
+  /** 
+   We need to add a parse_ret function here to parse the return values
+   */
+  int spin = 0;
+  while(peek(obj) != T_PAREN_R && spin++ < 10) {
+    tok = t(obj);
+    tid = tok_id(tok);
+    assert(isa_type(tid));
+    abort();
+  }
+  assert(spin < 10);
+  EXPECT_EAT(T_PAREN_R);
+
+  EXPECT_EAT(T_CURLY_L);
+  if(peek(obj) == T_CURLY_L) {
+    ast_add_func_block(obj, func);
+  }
+  EXPECT_EAT(T_CURLY_R);
+
+  printf("finsihed func parsing\n");
+}
+
+
+static void ast_add_func_id(parser_obj * obj, CoolAstFunc *func);
+static void ast_add_func_return(parser_obj * obj, CoolAstFunc *func);
+static void ast_add_func_assign(parser_obj * obj, CoolAstFunc *func, CoolToken *tok);
+
+static void ast_add_func_block(parser_obj * obj, CoolAstFunc *func) {
+  if(peek(obj) == T_CURLY_R) {
+    return;
+  }
+  switch(peek(obj)) {
+    case T_ID: {
+      ast_add_func_id(obj, func);
+    }; break;
+    case T_RETURN: {
+      ast_add_func_return(obj, func);
+    };break;
+    default: {
+      abort();
+    }
+  }
+  ast_add_func_block(obj, func);
+}
+
+static void ast_add_func_id(parser_obj * obj, CoolAstFunc *func) {
+  if(peek(obj) == T_SEMI) {
+    return;
+  }
+  CoolToken   * tok = t(obj);
+  CoolTokenId   tid = tok_id(tok);
+  assert(tid == T_ID);
+
+  switch(peek(obj)) {
+    case T_ASSIGN: {
+        ast_add_func_assign(obj, func, tok);
+    };break;
+    case T_PERIOD: {
+      ast_add_func_object_ref(obj, func, tok);
+    }
+    case T_COLON:  {
+      abort();//ast_add_func_declaration(obj, func, tok);
+    }; break;
+    default:
+      abort();
+  }
+}
+
+static void ast_add_func_return(parser_obj * obj, CoolAstFunc *func) {
+  CoolToken   * tok = t(obj);
+  CoolTokenId   tid = tok_id(tok);
+  assert(tid == T_RETURN);
+  assert(peek(obj) == T_ID);
+
+  tok = t(obj);
+  //func->ops->new_return(func, tok->ops->value(tok));
+}
+
+static void ast_add_func_assign(parser_obj * obj, CoolAstFunc *func, CoolToken *tok) {
+  EXPECT_EAT(T_ASSIGN);
+
+  char *local_name = tok_value(tok);
+
+  CoolToken   * tok_type = t(obj);
+  CoolTokenId   tid_type = tok_id(tok_type);
+
+  assert(tid_type == T_INT || tid_type == T_DOUBLE || tid_type == T_STRING);
+
+  CoolId type = tokid_to_coolid(tid_type);
+  func->ops->new_local(func, local_name, type);
+}
+
+static void ast_add_func_object_ref(parser_obj * obj, CoolAstFunc *func, CoolToken *tok) {
+  EXPECT_EAT(T_PERIOD);
+
+  char *ref_name = tok_value(tok);
+
+  CoolToken   * tok_field = t(obj);
+  CoolTokenId   tid_field = tok_id(tok_field);
+
+
+  char *field_name = tok_value(tok_field);
+
+  //func->ops->new_local(func, local_name, type);
+  if(peek(obj) == T_ASSIGN) {
+
+  }
+  //func->ops->add_assignment(func, id, value);
+}
+
+
+
+//static ast_tree * add_object_ref(parser_obj * obj, CoolToken *tok, CoolSymtab *symt) {
+//
+//  printf("Found tok: %s\n", tok_value(tok));
+//
+//  symt->ops->visit(symt, print_symtab);
+//
+//  assert(SYM_EXISTS(symt, tok_value(tok)));
+//  void *sym_t = symt->ops->get(symt, COOL_SYM_TABLE_TYPE);
+//  assert(strcmp(sym_t, COOL_SYM_SCOPE_FUNC_DEC) == 0);
+//
+//  ast_tree *tree = new_ast_tree(AST_OBJECT_REF, symt, tok);
+//  tree->n.obj_ref.type = CoolObjectId;
+//  str_copy_value(tree->n.obj_ref.name, tok);
+//
+//  EXPECT_EAT(T_PERIOD);
+//  Sym *sym = symt->ops->get(symt, COOL_SYM_TABLE_PARENT);
+//  assert(sym != NULL);
+//  assert(sym->type == SYM_ACTOR);
+//
+//  tok = tt(obj, T_ID);
+//  ast_tree *tree = sym->tree;
+//
+//
+//  //void *decl = ->symt->ops->get(ast_act->symt, tok->ops->value(tok));
+//
+//  //void *decl = ast_act->symt->ops->get(ast_act->symt, tok->ops->value(tok));
+//  //assert(decl != NULL);
+//  return tree;
+//}
+
+static void descend2(parser_obj *obj) {
+
+  CoolAstPkg *pkg = ast_add_package(obj);
+
+  ast_add_import(obj, pkg);
+  ast_add_actor(obj, pkg);
+  return;
+}
+
+inline static CoolToken * tt(parser_obj *obj, CoolTokenId tid) {
+  EXPECT(tid);
+  eat_ws(obj);
+  CoolToken *tok = t(obj);//obj->lex->ops->pop(obj->lex);
+  //printf("Type==>%.8s< Token=>%.10s<\n", TNames[tok->ops->type(tok)].name, tok->ops->value(tok));
+  eat_ws(obj);
+  return tok;
 }
 
 inline static CoolToken * t(parser_obj *obj) {
-  CoolToken * t = obj->lex->ops->pop(obj->lex);
-  return t;
+  eat_ws(obj);
+  CoolToken *tok = get_next_token_from_lexer(obj);
+  //printf("Type==>%.8s< Token=>%.10s<\n", TNames[tok->ops->type(tok)].name, tok->ops->value(tok));
+  eat_ws(obj);
+  return tok;
 }
 
-static CoolTokenId tid(CoolToken *tok) {
+static CoolTokenId tok_id(CoolToken *tok) {
   assert(tok);
   return tok->ops->type(tok);
 }
 
+static void * tok_value(CoolToken *tok) {
+  assert(tok);
+  return tok->ops->value(tok);
+}
+
+inline static int isa_type(CoolTokenId tid) {
+  return (tid == T_TYPE_INT || tid == T_TYPE_STRING || tid == T_TYPE_DOUBLE);
+}
+
 static int eat_ws(parser_obj *obj) {
-  CoolToken *tok = t(obj);
-  if(tid(tok) != T_WSPACE) {
-    printf("Illegal: %d == %s\n", tid(tok),  tok->ops->name(tok));
-    assert(NULL);
-  };
+  CoolToken * tok;
+  CoolTokenId id = obj->lex->ops->peek(obj->lex);
+  if(id == T_WSPACE || id == T_NEWLINE) {
+    tok = get_next_token_from_lexer(obj);
+    eat_ws(obj);
+  }
   return 0;
 }
 
-static ast_exp * exp_new(parser_obj *obj) {
-  CoolToken *tok = t(obj);
-  printf("ex=%s\n", tok->ops->value(tok));
-  ast_exp * ex;
-  ex       = malloc(sizeof(*ex));
-  //size_t s = strlen(tok->ops->name(tok));
-  return ex;
+/**
+ Don't use this directly use tt or t
+
+ This function is here to collecct used tokens. Once a token has been popped from
+ the lexer we never push it back.
+ */
+inline static CoolToken * get_next_token_from_lexer(parser_obj *obj) {
+  CoolToken *tok = obj->lex->ops->pop(obj->lex);
+  obj->used_toks->ops->enque(obj->used_toks, tok);
+  return tok;
 }
 
-static void exp_delete(ast_exp *v) {
-  free(v);
-}
 
-static ast_var * var_new(parser_obj *obj) {
-  CoolToken *tok = t(obj);
-  if(tid(tok) != T_ID) {
-    printf("aaa=%s\n", tok->ops->name(tok));
-    assert(NULL);
-  }
-  ast_var      * as_var;
-  as_var       = malloc(sizeof(*as_var));
-  printf("aaa=%s\n", tok->ops->value(tok));
-  size_t s     = strlen(tok->ops->value(tok));
-  as_var->size = s;
-  as_var->name = malloc(s + 1);
-  as_var->name = tok->ops->value(tok);
-  memcpy(as_var->name, tok->ops->value(tok), s);
-  return as_var;
-}
-
-static void var_delete(ast_var *v) {
-  free(v->name);
-  free(v);
-}
-
-static void parse_error(parser_obj *obj, CoolToken *tok) {
-  printf("parse_error: tok %d == %s\n", tid(tok),  tok->ops->name(tok));
-  assert(obj == NULL);// noreturn warning when using assert(NULL);
-}
-
-static void expect_eat(parser_obj *obj, CoolTokenId id) {
-  CoolToken *tok = t(obj);
-  assert(tid(tok) == id);
-}
+//static void parse_error(parser_obj *obj, CoolToken *tok) {
+//  printf("parse_error: tok %d == %s\n", tid(tok),  tok->ops->name(tok));
+//  assert(obj == NULL);// noreturn warning when using assert(NULL);
+//}
+//
+//static void expect_eat(parser_obj *obj, CoolTokenId id) {
+//  CoolToken *tok = t(obj);
+//  assert(tid(tok) == id);
+//}
 
 static CoolTokenId peek(parser_obj *obj) {
   return obj->lex->ops->peek(obj->lex);
@@ -447,7 +773,7 @@ static void shunt_s_push(parser_obj *obj) {}
 
 static void parse_expression(parser_obj *obj) {
   if(peek(obj) == T_WSPACE) {
-    expect_eat(obj, T_WSPACE);
+    EXPECT_EAT(T_WSPACE);
     parse_expression(obj);
   }
   if(peek(obj) == T_SEMI) {
@@ -456,7 +782,7 @@ static void parse_expression(parser_obj *obj) {
   }
 
   CoolToken * tok = t(obj);
-  CoolTokenId id  = tid(tok);
+  CoolTokenId id  = tok_id(tok);
 
   if(id == T_PAREN_L) {
     printf("(");
@@ -518,13 +844,6 @@ static void parse_expression(parser_obj *obj) {
   }
 }
 
-static ast_declare * ast_declare_new(parser_obj *obj, ast_var *id, ast_exp *ex) {
-  ast_declare *dec = malloc(sizeof(ast_declare));
-  dec->kind = AST_DECLARE;
-  dec->var  = id;
-  dec->exp  = ex;
-  return dec;
-}
 
 static void display_shunt(parser_obj *obj) {
   printf("\nQueue| ");
@@ -533,14 +852,105 @@ static void display_shunt(parser_obj *obj) {
 }
 
 
-/*
-static int peek(parser_obj *obj, CoolTokenId id) {
-  CoolToken *tok = obj->lex->ops->peek(obj->lex);
-  return 0;
-}*/
+static void parser_print_ast(CoolParser *c_parser) {
+  COOL_M_CAST_PARSER;
+  printf("printing AST\n");
+  size_t st_count = 0;
+  ast_printer(obj, 0);
+}
+
+static void ast_printer(parser_obj *obj, int scope) {
+  printf("printing AST\n");
+  size_t st_count = 0;
+  char buff[128] = {0};
+  //  ast_tree * ao = obj->ast_tree;
+  //  while(ao != NULL) {
+  //    ast_tree * prev = ao;
+  //    //ast_to_string(ao, buff);
+  //    printf("st_count = %zu >%s<\n", st_count, buff);
+  //    st_count++;
+  //    ao = ao->next;
+  //  }
+}
+
+//static void ast_to_string(ast_tree * ast, char buff[]) {
+//  if(ast->k == AST_PROGRAM) {
+//    memcpy(buff, "Program", strlen("Program"));
+//  }
+//  if(ast->k == AST_DECLARE) {
+//    memcpy(buff, "Declare", strlen("Declare"));
+//  }
+//  else {
+//    memcpy(buff, "Unkown", strlen("Unknown"));
+//  }
+//}
+
+
+
+
+//static Sym * add_sym(CoolSymtab *symt, char *key, ast_tree *tree, sym_type type) {
+//  assert(strlen(key) < COOL_SYM_LENGTH_LIMIT);
+//  Sym *s  = malloc(sizeof(Sym));
+//  s->tree = tree;
+//  s->type = type;
+//  strcpy(s->key, key);
+//  symt->ops->add(symt, s->key, s);
+//  return s;
+//}
+
+
+//static ast_declare * ast_declare_new(parser_obj *obj, ast_var *id, ast_exp *ex) {
+//  ast_declare *dec = malloc(sizeof(ast_declare));
+//  dec->kind = AST_DECLARE;
+//  //dec->var  = id;
+//  dec->exp  = ex;
+//  return dec;
+//}
+
+//static ast_exp * exp_new(parser_obj *obj) {
+//  CoolToken *tok = t(obj);
+//  printf("ex=%s\n", tok->ops->value(tok));
+//  ast_exp * ex;
+//  //ex       = malloc(sizeof(*ex));
+//  //size_t s = strlen(tok->ops->name(tok));
+//  return ex;
+//}
+
+//static void exp_delete(ast_exp *v) {
+//  free(v);
+//}
+
+//static ast_var * var_new(parser_obj *obj) {
+//  CoolToken *tok = t(obj);
+//  if(tid(tok) != T_ID) {
+//    printf("aaa=%s\n", tok->ops->name(tok));
+//    assert(NULL);
+//  }
+//  ast_var      * as_var;
+//  as_var       = malloc(sizeof(*as_var));
+//  printf("aaa=%s\n", tok->ops->value(tok));
+//  size_t s     = strlen(tok->ops->value(tok));
+//  as_var->size = s;
+//  as_var->name = malloc(s + 1);
+//  as_var->name = tok->ops->value(tok);
+//  memcpy(as_var->name, tok->ops->value(tok), s);
+//  return as_var;
+//}
+
+//static void var_delete(ast_var *v) {
+//  free(v->name);
+//  free(v);
+//}
+
 
 /*
- 
+ static int peek(parser_obj *obj, CoolTokenId id) {
+ CoolToken *tok = obj->lex->ops->peek(obj->lex);
+ return 0;
+ }*/
+
+/*
+
  static void parse_expression(parser_obj *obj) {
  if(peek(obj) == T_WSPACE) {
  expect_eat(obj, T_WSPACE);
@@ -595,46 +1005,46 @@ static int peek(parser_obj *obj, CoolTokenId id) {
  parse_expression(obj);
  }
  else if (id == T_OP_MULT || id == T_OP_DIV) {
-if(stack_pos == 0) {
-  spush(tok);
-}
-else {
-  CoolTokenId md = tid(stack[stack_pos - 1]);
-  while(md == T_OP_POWER) {
-    CoolToken *tmp = stack[stack_pos - 1];
-    qpush(tmp);
-    spop();
-  }
-  spush(tok);
-}
-parse_expression(obj);
-}
-else if (id == T_DOUBLE) {
-  printf(" DOUBLE ");
-  qpush(tok);
-  parse_expression(obj);
-}
-else if (id == T_INT) {
-  printf(" INT ");
-  qpush(tok);
-  parse_expression(obj);
-}
-else if (id == T_ID) {
-  printf(" ID ");
-  assert(NULL);
-}
-else if (id == T_SUB) {
-  spush(tok);
-  parse_expression(obj);
-}
-else if (id == T_WSPACE) {
-  assert(NULL);
-}
-else {
-  printf("?: %d == %s\n", id,  tok->ops->name(tok));
-}
-}
-*/
+ if(stack_pos == 0) {
+ spush(tok);
+ }
+ else {
+ CoolTokenId md = tid(stack[stack_pos - 1]);
+ while(md == T_OP_POWER) {
+ CoolToken *tmp = stack[stack_pos - 1];
+ qpush(tmp);
+ spop();
+ }
+ spush(tok);
+ }
+ parse_expression(obj);
+ }
+ else if (id == T_DOUBLE) {
+ printf(" DOUBLE ");
+ qpush(tok);
+ parse_expression(obj);
+ }
+ else if (id == T_INT) {
+ printf(" INT ");
+ qpush(tok);
+ parse_expression(obj);
+ }
+ else if (id == T_ID) {
+ printf(" ID ");
+ assert(NULL);
+ }
+ else if (id == T_SUB) {
+ spush(tok);
+ parse_expression(obj);
+ }
+ else if (id == T_WSPACE) {
+ assert(NULL);
+ }
+ else {
+ printf("?: %d == %s\n", id,  tok->ops->name(tok));
+ }
+ }
+ */
 
 
 /*
@@ -665,4 +1075,49 @@ else {
  #define spop()   stack[--stack_pos]
  */
 
+
+
+
+
+//static void descend(parser_obj *obj) {
+//  GEN_string(";cool_descend\n");
+//  size_t ops = 0;
+//  CoolToken *tok;
+//  while((tok = t(obj)) != NULL) {
+//    CoolTokenId tid = tok->ops->type(tok);
+//
+//    printf("tokname as=%s\n", tok->ops->name(tok));
+//    if(tid == T_DOUBLE) {
+//      if(peek(obj) == T_WSPACE) {
+//        printf("stmt_declare:\n");
+//        ast_declare * tmp = stmt_declare(obj, tok);
+//        //obj->ast_tree->next = new_ast_tree(AST_DECLARE);
+//      }
+//    }
+//    if(ops++ > 190) {
+//      //print_toks(obj);
+//      printf(">%s\n", obj->stream);
+//      printf("inf loop detected\n");
+//      assert(NULL);
+//    }
+//  }
+//}
+
+//static ast_declare * stmt_declare(parser_obj *obj, CoolToken *tok) {
+//  CoolTokenId id = tid(tok);
+//  assert(id == T_DOUBLE || id == T_INT);
+//  eat_ws(obj);
+//
+//  ast_var     * vv  = var_new(obj);
+//  ast_exp     * exp = NULL;
+//  eat_ws(obj);
+//  if(peek(obj) == T_ASSIGN) {
+//    CoolToken *tass = t(obj);
+//    assert(tass->ops->type(tass) == T_ASSIGN);
+//    parse_expression(obj);
+//    ast_exp *ex = exp_new(obj);
+//    return ast_declare_new(obj, vv, ex);
+//  }
+//  assert(NULL);
+//}
 

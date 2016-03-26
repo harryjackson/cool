@@ -1,6 +1,7 @@
 *.beam
 build/*
 docs/dox/*
+golang/*
 *a.out
 *CMakeFiles.txt
 *lex.yy.c

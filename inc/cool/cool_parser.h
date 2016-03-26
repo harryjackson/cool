@@ -1,21 +1,17 @@
-/**ile */#ifndef COOL_PARSER_H
+#ifndef COOL_PARSER_H
 #define COOL_PARSER_H
+#include "cool/cool_ast.h"
 #include "cool/cool_lexer.h"
+#include "cool/cool_symtab.h"
+#include <pthread.h>
 #include <stdio.h>
 
-typedef enum {
-  AST_PROGRAM,
-  AST_BIN_OP,
-  AST_BLOCK,
-  AST_CALL,
-  AST_COMPOUND,
-  AST_DECLARE,
-  AST_EXP,
-  AST_FUNC_DEC,
-  AST_PROC,
-  AST_UNA_OP,
-  AST_VAR,
-} ast_kind;
+typedef struct cool_glocal_scope {
+  pthread_mutex_t   mutex;
+  CoolSymtab      * symt;
+} cool_glocal_scope;
+
+static cool_glocal_scope *GLOBAL_SCOPE = {0};
 
 typedef struct CoolParser CoolParser;
 typedef struct CoolAST    CoolAST;
@@ -28,7 +24,7 @@ typedef struct CoolParserOps {
 } CoolParserOps;
 
 typedef struct CoolASTOps {
-  ast_kind   (* kind   )(CoolAST *ast);
+  ast_kind   (* kind   )(CoolAst *ast);
   void     * (* eval   )(CoolParser *p, char *exp);
   //void      * (* get    )(CoolParser *p);
   //void       (* print  )(CoolParser *p);
