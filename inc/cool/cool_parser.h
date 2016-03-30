@@ -14,10 +14,10 @@ typedef struct cool_glocal_scope {
 static cool_glocal_scope *GLOBAL_SCOPE = {0};
 
 typedef struct CoolParser CoolParser;
-typedef struct CoolAST    CoolAST;
+typedef struct CoolAst    CoolAst;
 
 typedef struct CoolParserOps {
-  CoolAST  * (* parse    )(CoolParser *p, CoolLexer *lex);
+  CoolAst  * (* parse    )(CoolParser *p, CoolLexer *lex);
   void     * (* get      )(CoolParser *p);
   void       (* print    )(CoolParser *p);
   void       (* print_ast)(CoolParser *p);
@@ -36,10 +36,10 @@ struct CoolParser {
   CoolParserOps * ops;
 };
 
-struct CoolAST {
-  void       * obj;
-  CoolASTOps * ops;
-};
+//struct CoolAST {
+//  void       * obj;
+//  CoolASTOps * ops;
+//};
 
 CoolParser * cool_parser_new(const char *filename);
 void         cool_parser_delete(CoolParser *p);

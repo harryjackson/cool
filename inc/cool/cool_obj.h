@@ -150,8 +150,8 @@ typedef enum ConstPoolItem {
 struct CoolBCConst {
   int           idx;
 //  ConstPoolItem id;
-  CoolId        cid;
-  CoolType      typ;
+  cool_type        cid;
+  //CoolType      typ;
   size_t        size;
   void        * val;
 };

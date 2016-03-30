@@ -77,7 +77,7 @@ typedef enum {
 
 typedef struct parser_obj {
   uint32_t      hash;
-  CoolId        type;
+  cool_type        type;
   FILE        * fh_o;
   size_t        pos;
   size_t        line;
@@ -104,7 +104,7 @@ typedef struct parser_impl {
 static void        descend(parser_obj *obj);
 static void        descend2(parser_obj *obj);
 
-static CoolAST   * parser_parse(CoolParser *c_parser, CoolLexer *lex);
+static CoolAst   * parser_parse(CoolParser *c_parser, CoolLexer *lex);
 
 
 /** AST Printer routines with scope */
@@ -114,7 +114,7 @@ static void ast_to_string(ast_tree * ast, char *buff);
 /************************************/
 
 
-static CoolId tokid_to_coolid(CoolTokenId tid);
+static cool_type tokid_to_cool_type(CoolTokenId tid);
 
 static void parse_expression(parser_obj *obj);
 static void display_shunt(parser_obj *obj);
@@ -135,6 +135,9 @@ static CoolAstActor * ast_add_actor(parser_obj *obj, CoolAstPkg *pkg);
 static void ast_add_fields(parser_obj *obj, CoolAstActor *actor);
 static void ast_add_actor_func(parser_obj *obj, CoolAstActor *actor);
 static void ast_add_func_block(parser_obj *obj, CoolAstFunc  *func);
+
+
+static void ast_add_func_field_ref(parser_obj * obj, CoolAstFunc *func, CoolToken *tok);
 
 //static ast_tree    * add_object_ref(parser_obj * obj, CoolToken *tok, CoolSymtab *symt);
 //static void ast_add_actor_func_signature(parser_obj *obj);
@@ -240,7 +243,7 @@ void print_symtab(CoolSymtab *t, const void * a, void * b) {
 //  return strdup(key);
 //}
 
-static CoolAST * parser_parse(CoolParser *c_parser, CoolLexer *lex) {
+static CoolAst * parser_parse(CoolParser *c_parser, CoolLexer *lex) {
   COOL_M_CAST_PARSER;
   GEN_string(COOL_OBJ_MAGIC_STRING);
   GEN_string(COOL_NEWLINE);
@@ -258,7 +261,7 @@ static CoolAST * parser_parse(CoolParser *c_parser, CoolLexer *lex) {
   obj->lex    = lex;
   obj->pos    = 0;
   descend2(obj);
-  return (CoolAST*)obj->ast;
+  return (CoolAst*)obj->ast;
 }
 
 #define EXPECT(tid) do {                                                          \
@@ -308,6 +311,13 @@ static CoolAstPkg * ast_add_package(parser_obj *obj) {
   CoolToken *tok = t(obj);
 
   CoolAstPkg * pkg = obj->ast->ops->new_pkg(obj->ast, tok_value(tok));
+  size_t m = *(size_t*)pkg;
+  printf("m=%zu\n", m);
+  assert(pkg != NULL);
+  assert(pkg->ops != NULL);
+
+  assert(pkg->ops->new_actor  != NULL);
+  assert(pkg->ops->new_import != NULL);
   PRINT_TOK("package->%s;\n", tok);
   EXPECT_EAT(T_SEMI);
   return pkg;
@@ -318,11 +328,6 @@ static CoolAstPkg * ast_add_import(parser_obj *obj, CoolAstPkg *pkg) {
   EXPECT_EAT(T_PAREN_L);
   EXPECT(T_STRING);
 
-  //ast_tree  *ast_o = new_ast_tree(AST_IMPORT, obj->ast_tree->symt, NULL);
-  //ast_o->u.import = calloc(1, sizeof(ast_import));
-
-  //printf("sizeof %zu\n", sizeof(ast_tree));
-
   while(peek(obj) != T_PAREN_R) {
     EXPECT(T_STRING);
     CoolToken *tok = t(obj);
@@ -331,17 +336,8 @@ static CoolAstPkg * ast_add_import(parser_obj *obj, CoolAstPkg *pkg) {
     size_t str_len = strlen(name);
     assert(str_len > 0);
     assert(str_len < COOL_PARSER_ID_LENGTH);
+    assert(pkg->ops->new_import != NULL);
     pkg->ops->new_import(pkg, name);
-//    if(SYM_EXISTS(ast_o->symt, name)) {
-//      fprintf(stderr, "Sym: %s already exists\n", name);
-//    }
-//    memcpy(ast_o->n.import.name, name, str_len);
-//    printf("name=%s has length %zu\n", name, str_len);
-//    ast_o->n.import.name[str_len] = '\0';
-//    assert(strlen(ast_o->n.import.name) > 0);
-
-    //obj->symtab->ops->add(obj->symtab, ast_o->n.import.name, ast_o);
-
     EXPECT_EAT(T_SEMI);
   }
 
@@ -378,15 +374,18 @@ static CoolAstActor * ast_add_actor(parser_obj *obj, CoolAstPkg *pkg) {
   CoolToken *tok = t(obj);
 
   CoolAstActor *actor = pkg->ops->new_actor(pkg, tok_value(tok));
+  assert(actor->ops->name(actor) != NULL);
 
   //obj->symtab->ops->add(obj->symtab, ast_a->n.actor.name, ast_a);
 
   PRINT_TOK("actor->%s;\n", tok);
   EXPECT_EAT(T_CURLY_L);
   ast_add_fields(obj, actor);
-  if(peek(obj) == T_FUNC) {
+  while(peek(obj) == T_FUNC) {
     ast_add_actor_func(obj, actor);
   }
+  EXPECT_EAT(T_CURLY_R);
+
   return actor;
 }
 
@@ -433,16 +432,16 @@ static void str_copy_value(char *dest, CoolToken *tok) {
 //  return decl;
 //}
 
-static CoolId tokid_to_coolid(CoolTokenId tid) {
+static cool_type tokid_to_cool_type(CoolTokenId tid) {
   switch(tid) {
     case T_TYPE_INT: {
-      return CoolIntegerId;
+      return Integer_T;
     };
     case T_TYPE_DOUBLE:  {
-      return CoolDoubleId;
+      return Double_T;
     };
     case T_TYPE_STRING:  {
-      return CoolStringId;
+      return String_T;
     };
   }
   abort();
@@ -466,13 +465,13 @@ static void parse_field(parser_obj *obj, CoolAstActor *actor) {
 
     switch(tid) {
       case T_TYPE_INT: {
-        actor->ops->new_field(actor, field_name, CoolIntegerId);
+        actor->ops->new_field(actor, field_name, Integer_T);
       }break;
       case T_TYPE_DOUBLE:  {
-        actor->ops->new_field(actor, field_name, CoolDoubleId);
+        actor->ops->new_field(actor, field_name, Double_T);
       }break;
       case T_TYPE_STRING:  {
-        actor->ops->new_field(actor, field_name, CoolStringId);
+        actor->ops->new_field(actor, field_name, String_T);
       }break;
     }
 }
@@ -510,8 +509,12 @@ static void parse_arg(parser_obj *obj, CoolAstFunc *func) {
   EXPECT_EAT(T_COLON);
 
   tok = t(obj);
-  CoolId type = tokid_to_coolid(tok_id(tok));
+  cool_type type = tokid_to_cool_type(tok_id(tok));
+  //printf("adding arg: %s : %s\n", arg_name, type_details[type].name);
   func->ops->new_arg(func, arg_name, type);
+  if(peek(obj) == T_COMMA) {
+    EXPECT_EAT(T_COMMA);
+  }
   parse_arg(obj, func);
 }
 
@@ -519,7 +522,7 @@ static void ast_add_actor_func(parser_obj *obj, CoolAstActor *act) {
   eat_ws(obj);
   CoolToken   * tok;
   CoolTokenId   tid = peek(obj);
-  if(tid == T_ID || tid == T_CURLY_R) {
+  if(tid == T_CURLY_R) {
     return;
   }
   EXPECT_EAT(T_FUNC);
@@ -564,14 +567,11 @@ static void ast_add_actor_func(parser_obj *obj, CoolAstActor *act) {
   EXPECT_EAT(T_PAREN_R);
 
   EXPECT_EAT(T_CURLY_L);
-  if(peek(obj) == T_CURLY_L) {
-    ast_add_func_block(obj, func);
-  }
+  ast_add_func_block(obj, func);
   EXPECT_EAT(T_CURLY_R);
 
   printf("finsihed func parsing\n");
 }
-
 
 static void ast_add_func_id(parser_obj * obj, CoolAstFunc *func);
 static void ast_add_func_return(parser_obj * obj, CoolAstFunc *func);
@@ -581,6 +581,7 @@ static void ast_add_func_block(parser_obj * obj, CoolAstFunc *func) {
   if(peek(obj) == T_CURLY_R) {
     return;
   }
+  printf("parsing func_block\n");
   switch(peek(obj)) {
     case T_ID: {
       ast_add_func_id(obj, func);
@@ -588,33 +589,64 @@ static void ast_add_func_block(parser_obj * obj, CoolAstFunc *func) {
     case T_RETURN: {
       ast_add_func_return(obj, func);
     };break;
+    case T_INT: {
+      EXPECT_EAT(T_INT);
+    };break;
+    case T_PERIOD: {
+      EXPECT_EAT(T_PERIOD);
+    };break;
+    case T_SEMI: {
+      EXPECT_EAT(T_SEMI);
+    };break;
+
     default: {
+      printf("peek=%s\n", TNames[peek(obj)].name);
       abort();
     }
   }
   ast_add_func_block(obj, func);
 }
 
+
+static void ast_add_func_object_ref(parser_obj * obj, CoolAstFunc *func, CoolToken *tok);
+
 static void ast_add_func_id(parser_obj * obj, CoolAstFunc *func) {
   if(peek(obj) == T_SEMI) {
+    EXPECT_EAT(T_SEMI);
     return;
   }
   CoolToken   * tok = t(obj);
   CoolTokenId   tid = tok_id(tok);
   assert(tid == T_ID);
 
+  printf("Parsing func_id\n");
   switch(peek(obj)) {
     case T_ASSIGN: {
-        ast_add_func_assign(obj, func, tok);
+      EXPECT_EAT(T_ASSIGN);
+      //ast_add_func_assign(obj, func, tok);
     };break;
     case T_PERIOD: {
-      ast_add_func_object_ref(obj, func, tok);
-    }
+      EXPECT_EAT(T_PERIOD);
+      //ast_add_func_field_ref(obj, func, tok);
+    };break;
     case T_COLON:  {
-      abort();//ast_add_func_declaration(obj, func, tok);
-    }; break;
-    default:
+      EXPECT_EAT(T_COLON);
+      //abort();//ast_add_func_declaration(obj, func, tok);
+    };break;
+    case T_SEMI:  {
+      EXPECT_EAT(T_SEMI);
+    };break;
+    case T_ID:  {
+      EXPECT_EAT(T_ID);
+    };break;
+    case T_OP_PLUS:  {
+      EXPECT_EAT(T_OP_PLUS);
+    };break;
+
+    default: {
+      printf("id = %s peek=%s\n", TNames[tid].name, TNames[peek(obj)].name);
       abort();
+    }
   }
 }
 
@@ -638,25 +670,28 @@ static void ast_add_func_assign(parser_obj * obj, CoolAstFunc *func, CoolToken *
 
   assert(tid_type == T_INT || tid_type == T_DOUBLE || tid_type == T_STRING);
 
-  CoolId type = tokid_to_coolid(tid_type);
+  cool_type type = tokid_to_cool_type(tid_type);
   func->ops->new_local(func, local_name, type);
 }
 
-static void ast_add_func_object_ref(parser_obj * obj, CoolAstFunc *func, CoolToken *tok) {
+static void ast_add_func_field_ref(parser_obj * obj, CoolAstFunc *func, CoolToken *tok) {
   EXPECT_EAT(T_PERIOD);
 
+  printf("parsing object_ref\n");
   char *ref_name = tok_value(tok);
 
   CoolToken   * tok_field = t(obj);
   CoolTokenId   tid_field = tok_id(tok_field);
 
-
   char *field_name = tok_value(tok_field);
 
-  //func->ops->new_local(func, local_name, type);
+  //CoolAstLvalue * lvalue = func->ops->new_field_lvar(func, ref_name, field_name);
   if(peek(obj) == T_ASSIGN) {
-
+    
+    //CoolAstExp * exp = ast_add_expression(parser_obj * obj, CoolAstFunc *func, CoolToken *tok)
+    //lvalue->ops->set_exp(lvalue, exp);
   }
+
   //func->ops->add_assignment(func, id, value);
 }
 
@@ -695,7 +730,7 @@ static void ast_add_func_object_ref(parser_obj * obj, CoolAstFunc *func, CoolTok
 static void descend2(parser_obj *obj) {
 
   CoolAstPkg *pkg = ast_add_package(obj);
-
+  assert(pkg->ops != NULL);
   ast_add_import(obj, pkg);
   ast_add_actor(obj, pkg);
   return;
@@ -860,17 +895,11 @@ static void parser_print_ast(CoolParser *c_parser) {
 }
 
 static void ast_printer(parser_obj *obj, int scope) {
-  printf("printing AST\n");
   size_t st_count = 0;
   char buff[128] = {0};
-  //  ast_tree * ao = obj->ast_tree;
-  //  while(ao != NULL) {
-  //    ast_tree * prev = ao;
-  //    //ast_to_string(ao, buff);
-  //    printf("st_count = %zu >%s<\n", st_count, buff);
-  //    st_count++;
-  //    ao = ao->next;
-  //  }
+
+  CoolAst * ast = obj->ast;
+  ast->ops->print(ast);
 }
 
 //static void ast_to_string(ast_tree * ast, char buff[]) {

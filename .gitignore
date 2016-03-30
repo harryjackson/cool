@@ -1,4 +1,8 @@
+*.bak
 *.beam
+*.html
+*.css
+*.js
 build/*
 docs/dox/*
 golang/*

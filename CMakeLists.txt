@@ -1,4 +1,4 @@
-project(cool C)
+project(cool CXX)
 cmake_minimum_required(VERSION 3.0)
 include(CTest)
 enable_testing()
@@ -30,8 +30,12 @@ message("PROJECT_SOURCE_DIR == ${PROJECT_SOURCE_DIR}")
 message("-- VARIABLES --") 
 #-fsanitize=thread
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O3 -Wall -pedantic -std=c11 -D_FORTIFY_SOURCE=2 -Weverything -Wextra -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition -Wno-unneeded-internal-declaration -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wunused-function -Wstack-protector -fstack-protector") 
+
+
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DNDEBUG -g -O3 -Wall -pedantic-errors -std=c11 -D_FORTIFY_SOURCE=2 -Weverything -Wextra -Wno-padded -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition -Wno-unneeded-internal-declaration -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter  -Wstack-protector -fstack-protector")set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -dNDEBUG -g -O3 -Wall -pedantic-errors -std=c11 -D_FORTIFY_SOURCE=2 -Weverything -Wno-padded -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition -Wno-unneeded-internal-declaration -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter") 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -pedantic-errors -std=c11 -D_FORTIFY_SOURCE=2 -Weverything -Wno-float-equal -Wno-padded -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition -Wno-missing-noreturn -Wno-unneeded-internal-declaration -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-unused -Wno-unused-macros -Wno-switch-enum -Wno-switch -Wno-reserved-id-macro") 
+#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -pedantic-errors -std=c11 -D_FORTIFY_SOURCE=2 -Weverything -Wno-float-equal -Wno-padded -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition -Wno-missing-noreturn -Wno-unneeded-internal-declaration -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-unused -Wno-unused-macros -Wno-switch-enum -Wno-switch -Wno-reserved-id-macro") 
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall -pedantic-errors -std=c++11 -D_FORTIFY_SOURCE=2 -Weverything -Wno-float-equal -Wno-padded -Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition -Wno-missing-noreturn -Wno-unneeded-internal-declaration -Wno-unused-function -Wno-unused-variable -Wno-unused-parameter -Wno-unused -Wno-unused-macros -Wno-switch-enum -Wno-switch -Wno-reserved-id-macro") 
 set(COOL_INCLUDES ./inc)
 include_directories(${COOL_INCLUDES})
 add_subdirectory(./src)

@@ -2,7 +2,7 @@
 typedef struct func_obj func_obj;
 struct func_obj {
   size_t     id;
-  CoolId     cid;
+  cool_type  cid;
   size_t     i_count;
   size_t     i_start;
   char       sig[COOL_MAX_OBJECT_METHOD_SIGNATURE];

@@ -26,7 +26,7 @@ int main() {
   lex->ops->lexFile(lex, "Log");
 
   CoolParser * parser = cool_parser_new("/git/ghub/cool/build/.output/cool__code.S");
-  CoolAST *ast = parser->ops->parse(parser, lex);
+  CoolAst *ast = parser->ops->parse(parser, lex);
   //printf("k=%d\n", ast->ops->kind(ast));
   assert(ast != NULL);
   parser->ops->print_ast(parser);

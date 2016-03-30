@@ -63,7 +63,7 @@ static CoolAddressStrings CoolAddrStrings[] = {
 
 
 
-typedef CoolId VMType;
+typedef cool_type VMType;
 
 typedef struct reg_bytes {
   uint8_t b0, b1;

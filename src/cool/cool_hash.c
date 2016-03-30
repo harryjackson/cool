@@ -256,14 +256,15 @@ static void * hash_get(CoolHash *c_hash, CoolNode * node) {
 inline
 static void * priv_hash_get(hash_obj *obj, CoolNode * node) {
 
-  uint32_t hash = node->ops->hash(node);
-  int bid = hash % obj->bucket_count;
+  uint32_t hash  = node->ops->hash(node);
+  int bid        = hash % obj->bucket_count;
   CoolList *list = obj->buckets[bid].list;
   //CoolList *list = obj->buckets[node->ops->hash(node) % obj->bucket_count].list;
   //hash_lock_bucket(&obj->buckets[bid]);
-  return list->ops->find(list, node->ops->cmp, node);
+  //return list->ops->find(list, node->ops->cmp, node);
   //hash_unlock_bucket(&obj->buckets[bid]);
   //return res;
+  return NULL;
 }
 
 static void hash_clear(CoolHash *c_hash)  {
@@ -291,7 +292,10 @@ static void * hash_put(CoolHash *c_hash, CoolNode *node) {
   int bid = hash % obj->bucket_count;
   CoolList *list = obj->buckets[bid].list;
   hash_lock_bucket(&obj->buckets[bid]);
-  CoolNode *n = list->ops->find(list, node->ops->cmp, node);
+
+
+  assert(NULL);//BUG HERE ON NEXT LINE
+  CoolNode *n;// = list->ops->find(list, node->ops->cmp, node);
   if(n == NULL) {
     list->ops->push(list, node);
     obj->node_count++;

@@ -19,9 +19,9 @@ static fixture Fixtures[] = {
   {"string data2", 2, "string of stuff2"},
 };
 
-void callback_remove_items(CoolSymtab *t, const void *key, void *val);
+static void callback_remove_items(CoolSymtab *t, const void *key, void *val);
 
-void callback_remove_items(CoolSymtab *t, const void *key, void *val) {
+static void callback_remove_items(CoolSymtab *t, const void *key, void *val) {
   t->ops->delete(t, key);
 }
 

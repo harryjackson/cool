@@ -4,16 +4,16 @@
 #include <stdint.h>
 
 typedef struct base_node {
-  uint32_t hash;
-  CoolId   type;
+  uint32_t  hash;
+  cool_type type;
 } base_node;
 
 typedef struct hash_node {
-  uint32_t hash;
-  CoolId   type;
-  size_t   keysize;
-  void   * key;
-  void   * value;
+  uint32_t  hash;
+  cool_type type;
+  size_t    keysize;
+  void    * key;
+  void    * value;
 } hash_node; 
 
 const static hash_node coolphn;

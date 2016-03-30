@@ -37,11 +37,11 @@ typedef struct CoolOps {
 } CoolOps;
 
 typedef struct CoolNodeOps {
-  CoolId   ( * type   )(CoolNode *a);
+  cool_type( * type   )(CoolNode *a);
   void   * ( * key    )(CoolNode *a);
   size_t   ( * size   )(CoolNode *a);
   void   * ( * value  )(CoolNode *a);
-  void     ( * edit   )(CoolNode *a, CoolId type, size_t keysize, void *key, void * value);
+  void     ( * edit   )(CoolNode *a, cool_type type, size_t keysize, void *key, void * value);
   int      ( * cmp    )(CoolNode *a, CoolNode *b);
   uint32_t ( * hash   )(CoolNode *a);
   uint32_t ( * hash2  )(CoolNode *a);
@@ -60,7 +60,7 @@ typedef struct NodeResult {
 
 
 
-CoolNode * cool_node_new(CoolId type, size_t size, void * key, void * value);
+CoolNode * cool_node_new(cool_type type, size_t size, void * key, void * value);
 void       cool_node_delete(CoolNode *node);
 
 int  node_cmp (CoolNode *a, CoolNode *b);

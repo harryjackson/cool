@@ -39,7 +39,7 @@ typedef struct TokStream {
 
 typedef struct lexer_obj {
   uint32_t      hash;
-  CoolId        type;
+  cool_type        type;
   FILE *        fh;
   size_t        pos;
   size_t        line;
@@ -274,7 +274,7 @@ static void tok(lexer_obj *obj) {
     case 'd': {
       s = 6;
       if(memcmp(str, "double", s) == 0) {
-        if(   str[s] == ';' || str[s] == ' '|| str[s] == ')'); {
+        if(   str[s] == ';' || str[s] == ' '|| str[s] == ')' || str[s] == ','); {
           tok_append_str(obj, T_TYPE_DOUBLE, s, str);
           return;
         }
@@ -283,7 +283,9 @@ static void tok(lexer_obj *obj) {
     case 'i': {
       s = 3;
       if(memcmp(str, "int", s) == 0) {
-        if(   str[s] == ';' || str[s] == ' '|| str[s] == ')'); {
+        if(str[s] == ';' || str[s] == ' ' || str[s] == ')' || str[s] == ',') {
+          //printf("%s\n", str);
+          //abort();
           tok_append_str(obj, T_TYPE_INT, s, str);
           return;
         }
@@ -292,7 +294,7 @@ static void tok(lexer_obj *obj) {
     case 'r': {
       s = 6;
       if(memcmp(str, "return", s) == 0) {
-        if(   str[s] == ';' || str[s] == ' '); {
+        if(   str[s] == ';' || str[s] == ' ') {
           tok_append_str(obj, T_RETURN, s, str);
           return;
         }
@@ -301,9 +303,10 @@ static void tok(lexer_obj *obj) {
     case 's': {
       s = 6;
       if(memcmp(str, "string", s) == 0) {
-        if(   str[s] == ';' || str[s] == ' ' || str[s] == ')');
-        tok_append_str(obj, T_TYPE_STRING, s, str);
-        return;
+        if(   str[s] == ';' || str[s] == ' ' || str[s] == ')' || str[s] == ',') {
+          tok_append_str(obj, T_TYPE_STRING, s, str);
+          return;
+        }
       }
     }break;
     case 'f': {
@@ -380,6 +383,9 @@ static void tok(lexer_obj *obj) {
   }
   else if (str[0] == ':') {
     tok_append_str(obj, T_COLON, 1, str);
+  }
+  else if (str[0] == ',') {
+    tok_append_str(obj, T_COMMA, 1, str);
   }
   else if (str[0] == ';') {
     //printf(">;<\n");
@@ -552,7 +558,7 @@ static void tok_append_str(lexer_obj *obj, CoolTokenId tid,  const size_t size, 
   tok->t      = tid;
   memcpy(tok->u->str, stream, size);
   tok->u->str[size] = '\0';
-  if(tid == T_INT) {
+  if(tid == T_TYPE_INT) {
     assert(memcmp(tok->u->str, "int", 3) == 0);
   }
 //printf("pushing(%s)\n",tok->u->str);

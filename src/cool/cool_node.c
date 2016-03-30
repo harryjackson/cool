@@ -1,6 +1,7 @@
 /**\file */
 #include "cool/cool_list.h"
 #include "cool/cool_node.h"
+#include "cool/cool_types.h"
 //#include "cool/cool_hash_node.h"
 #include <cool/cool_murmur3.h>
 
@@ -26,14 +27,14 @@ static void   * node_key(CoolNode *a);
 static size_t   node_size(CoolNode *a);
 static uint32_t node_hash(CoolNode *a);
 static void   * node_value(CoolNode *a);
-static void     node_edit(CoolNode *a, CoolId type, size_t keysize, void *key, void * value);
+static void     node_edit(CoolNode *a, cool_type type, size_t keysize, void *key, void * value);
 
 static int node_cmp_strings(CoolNode *a, CoolNode *b);
 static int node_cmp_64(CoolNode *a, CoolNode *b);
 
 /*typedef struct hash_node {
  uint32_t hash;
- CoolId   type;
+ cool_type   type;
  size_t   keysize;
  void   * key;
  void   * value;
@@ -42,7 +43,7 @@ static int node_cmp_64(CoolNode *a, CoolNode *b);
 
 typedef struct node_obj {
   uint32_t      hash;
-  CoolId        type;
+  cool_type     type;
   size_t        keysize;
   void        * key;
   void        * value;
@@ -64,10 +65,10 @@ static cool_node_cache CACHE;
 
 /*
  typedef struct CoolNodeOps {
- CoolId   ( * type   )(CoolNode *a);
+ cool_type   ( * type   )(CoolNode *a);
  size_t   ( * size   )(CoolNode *a);
  void *   ( * value  )(CoolNode *a);
- void     ( * edit   )(CoolNode *a, CoolId type, size_t keysize, void *key, void * value);
+ void     ( * edit   )(CoolNode *a, cool_type type, size_t keysize, void *key, void * value);
  int      ( * cmp    )(CoolNode *a, CoolNode *b);
  uint32_t ( * hash   )(CoolNode *a);
  uint32_t ( * hash2  )(CoolNode *a);
@@ -90,7 +91,7 @@ static apr_pool_t *POOL = NULL;
 
 static uint32_t node_hash_priv(node_obj *obj);
 
-CoolNode * cool_node_new(CoolId type, size_t keysize, void *key, void * value) {
+CoolNode * cool_node_new(cool_type type, size_t keysize, void *key, void * value) {
 
   /*if(POOL == NULL) {
     apr_pool_create(&POOL, NULL);
@@ -188,7 +189,7 @@ unsigned int cool_node_hashfunc_default(const char *char_key, size_t *klen, unsi
 }
 
 inline
-static void node_edit(CoolNode *c_node, CoolId type, size_t keysize, void *key, void * value) {
+static void node_edit(CoolNode *c_node, cool_type type, size_t keysize, void *key, void * value) {
   COOL_M_CAST_NODE;
   assert(keysize && key);
   //uint32_t   h = obj->hash;
@@ -245,7 +246,7 @@ inline static int node_cmp_strings(CoolNode *a, CoolNode *b) {
   node_obj *oa = (node_obj*)a->obj;
   node_obj *ob = (node_obj*)b->obj;
   assert(oa->type == ob->type);
-  CoolId foo = CoolVoidId;
+  cool_type foo = Void_T;
   /*printf("Searching for k=%zu have k=%zu\n",
          *(size_t*)bb->obj->key,
          *(size_t*)aa->obj->key);
