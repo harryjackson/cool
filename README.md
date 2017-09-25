@@ -7,7 +7,7 @@
 I'm still trying to figure out Doxygen at the moment. This means this page will
 likely look a little odd as I learn it's markup etc.
 
-Most of this is randmom musings ie thoughts about language design etc. Some
+Most of this is random musings ie thoughts about language design etc. Some
 items might not even be possible.
 
 ## Fail Fast Fail Early {#failfast}
@@ -20,7 +20,7 @@ and I'm working on getting it higher.
 
 I'm trying to cover as much ground as I can without getting bogged down in
 things like performance, perfect code, perfect api's etc. I write basic tests
-for almost everying and use valgrind and Xcodes leak detector but that's it.
+for almost everything and use valgrind and Xcodes leak detector but that's it.
 This is not production quality C. 
 
 The idea is to make sure that a change that might remotely break something 
@@ -47,7 +47,7 @@ I've read a lot about VM's and compilers but knowledge != understanding. Anyone
 that's hacked on any of the other popular VM's will probably see a lot of
 similarities here except what's here is likely to be in very bad condition.
 
-As I've been building the VM this I've realised that it's becaming a single
+As I've been building the VM this I've realised that it's becoming a single
 CPU/Core ie there needs to be something that manages the cores. The actual VM
 is a layer of abstraction above where my thinking is/was. Considering that I'd
 like to play with concurrency issues my "VM" as it stands is at the wrong layer
@@ -61,7 +61,7 @@ because it's all managed using software but there's no [operating
 system](https://en.wikipedia.org/wiki/Distributed_operating_system)
 
 I'm not attempting anything so bold as a distributed OS but communication of 
-independant processes in a network is something I'd like to achieve even if 
+independent processes in a network is something I'd like to achieve even if 
 it's only doing simple tasks.
 
 
@@ -69,7 +69,7 @@ it's only doing simple tasks.
 
 I like the idea of Actors. Need to read more in this area. 
 
-There's a decent paper [by Benjamin C. Pierce on pi-calcus using PICT
+There's a decent paper [by Benjamin C. Pierce on pi-calculus using PICT
 here](http://www.dipmat.unict.it/~barba/PROG-LANG/PROGRAMMI-TESTI/READING-MATERIAL/TutorialPICT.pdf)
 
 I think if I could get a minimal message passing system working it would be an
@@ -101,7 +101,7 @@ The entire project is written in C.
 
 I use Cmake where the src directory is ./src and build is ./build.  Cmake
 generates an XCode project. I'm using an out of source build so I can
-compeltely blast everythign under ./build and start from scratch. 
+completely blast everything under ./build and start from scratch. 
 
 
 To generate an XCode project do this...
@@ -177,7 +177,7 @@ doing this because at the outset most of this was just theory to me..
 1. Import Objects. Sounds trivial enough but this is inherently tricky. It's
    also really important ie Java's import, Perl's use etc define a large part
    of how the runtime works and behaves ie who's not fought with CLASSPATH in
-   java.
+   Java.
 2. Multicore VM ie the VM should have multiple cores and this should be
    supported by Casm.
 3. Error handling by the VM ie we should do our best to provide decent errors 
@@ -204,7 +204,7 @@ Some other features that would be great to add
    make it hard to support functional languages. Note, I've already made our
    stack a linked list of stack frames as opposed to a fixed block of memory 
    to help with things like this.
-6. Benchmarkingi/Profiling. While I've read a lot of material saying that
+6. Benchmarking/Profiling. While I've read a lot of material saying that
    performance is not something to worry about when designing a language it's
    how almost all language get ranked.
 7. Testing should also be builtin. I like how golang does it.
@@ -617,7 +617,7 @@ I love the idea of Mnesia in Erlang.
 
 [Great synospis of the different C++ compilers etc.](http://www.agner.org/optimize/calling_conventions.pdf)
 [Preprocessor reading](http://www.keithschwarz.com/cs106l/spring2009/handouts/080_Preprocessor_2.pdf)
-[Agner Fogs Optizations pages](http://www.agner.org/optimize/)
+[Agner Fogs Optimizations pages](http://www.agner.org/optimize/)
 
 
 ### D {#dee}
