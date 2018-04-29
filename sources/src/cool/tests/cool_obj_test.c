@@ -171,4 +171,5 @@ static int test_slurp() {
 }
 
 
-#include "cool_vm_undefs.h"
+#include "cool/cool_vm_undefs.h"
+

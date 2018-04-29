@@ -1,7 +1,7 @@
 #include "cool/cool_shunt.h"
 #include "cool/cool_stack.h"
 #include "cool/cool_lexer.h"
-#include "cool_utils.h"
+#include "cool/cool_utils.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>

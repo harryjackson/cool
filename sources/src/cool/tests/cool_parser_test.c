@@ -4,7 +4,7 @@
 #include "cool/cool_list.h"
 #include "cool/cool_hash_node.h"
 #include "cool/cool_symtab.h"
-#include cool/"cool_utils.h"
+#include "cool/cool_utils.h"
 #include <pthread.h>
 #include <assert.h>
 #include <stdio.h>

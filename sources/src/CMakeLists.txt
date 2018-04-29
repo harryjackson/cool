@@ -3,10 +3,12 @@ project(cool C)
 message("CMAKE_CURRENT_SOURCE_DIR == ${CMAKE_CURRENT_SOURCE_DIR}")
 #----------------  COOL ----------------------
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/cool/)
-source_group(VM 
-  REGULAR_EXPRESSION ".*vm.*" 
-  REGULAR_EXPRESSION ".*asm.*")
 
+#source_group(VM 
+#  REGULAR_EXPRESSION ".*vm.*" 
+#  REGULAR_EXPRESSION ".*asm.*"
+#)
+#
 set(cool_utils_srcs
   ${CMAKE_CURRENT_SOURCE_DIR}/../inc/cool/cool_utils.h
   ${CMAKE_CURRENT_SOURCE_DIR}/cool/cool_utils.c

@@ -103,12 +103,15 @@ static void ** shunt_array(CoolShunt *c_shunt) {
   return ret;
 }
 
+
+
+
 static void shunt_print_q(CoolShunt *c_shunt) {
   COOL_M_CAST_SHUNT;
   ssize_t i = 0;
   for(i = 0; i < obj->q_pos; i++) {
     shunt sh = obj->queue[i];
-    printf("%c ", (char)get_shunt_char(sh.id));
+    //printf("%c ", (char)get_shunt_char(sh.id));
   }
   printf("\n");
 
