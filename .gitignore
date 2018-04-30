@@ -12,3 +12,4 @@ golang/*
 instruments/
 scratch/*
 src/cmake_install.cmake
+**.DS_Store
