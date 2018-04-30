@@ -4,9 +4,10 @@
 #include "cool/cool_limits.h"
 #include "cool/cool_stack.h"
 #include "cool/cool_obj.h"
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstdint>
+#include <string>
 
 
 /**
@@ -23,15 +24,59 @@ typedef struct vm_obj    vm_obj;
 typedef struct vm_green  vm_green;
 
 typedef struct CoolVM  CoolVM;
-typedef struct uint8_t CoolReg;
+//typedef struct uint8_t CoolReg;
+typedef char CoolReg;
 
 #define LDK(a,b) {{ OP_LDK, a, (b & 0x00ff) , (b >> 8) }}
 
-typedef enum CoolOp {
-#define C_VM_OPS(op,id,str,lcopstr) op = id,
-#include "cool/cool_vm_ops.h"
-#undef C_VM_OPS
-} CoolOp;
+//typedef enum CoolOp {
+//#define C_VM_OPS(op,id,str,lcopstr) op = id,
+//#include "cool_vm_ops.h"
+//DUMMYOp = 1000000
+//#undef C_VM_OPS
+//} CoolOp;
+
+
+enum class CoolOp: uint32_t {
+	OP_NOP = 0,
+	OP_MOV = 1,
+	OP_ARG = 2,
+	OP_ADD = 3,
+	OP_CALL = 4,
+	OP_RET = 5,
+	OP_JMP = 6,
+	OP_LDK = 7,
+	OP_PRECALL = 8,
+	OP_POSTCALL = 9,
+	OP_SUB = 10,
+	OP_MUL = 11,
+	OP_DIV = 12,
+	OP_MOD = 13,
+	OP_POW = 14,
+	OP_EQ = 15,
+	OP_LE = 16,
+	OP_LT = 17,
+	OP_PUSH = 18,
+	OP_POP = 19,
+	OP_HALT = 20,
+	OP_SET = 21,
+	OP_SEND = 22,
+	OP_NEW = 23,
+	OP_CANARY = 24,
+	OP_ZZ = 25
+};
+
+class CoolOperator {
+public:
+	enum CoolOp op;
+    std::string *name;
+	CoolOperator(CoolOp op, std::string *name);
+};
+
+static CoolOperator opArray[] = {
+ new CoolOperator(new CoolOp, "Nill")
+};
+
 
 typedef struct CoolOpStrings {
   const char *name;
@@ -41,12 +86,14 @@ typedef struct CoolOpStrings {
 static CoolOpStrings OpStrings[] = {
 #define C_VM_OPS(op,id,str,lcopstr) { #str, op},
 #include "cool/cool_vm_ops.h"
+{DUMMYOp, "DummyOp"}
 #undef C_VM_OPS
 };
 
 typedef enum CoolAddress {
 #define C_VM_ADDRESS(op,id,str) op = id,
 #include "cool/cool_vm_address.h"
+DummyAddress = 1000000
 #undef C_VM_ADDRESS
 } CoolAddress;
 
@@ -58,6 +105,7 @@ typedef struct CoolAddressStrings {
 static CoolAddressStrings CoolAddrStrings[] = {
 #define C_VM_ADDRESS(op,id,str) { #str, op},
 #include "cool/cool_vm_address.h"
+{DummyAddress , "DummyAddress"}
 #undef C_VM_ADDRESS
 };
 

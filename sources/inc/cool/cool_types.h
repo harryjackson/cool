@@ -79,7 +79,7 @@ typedef enum cool_type {
 	CoolTuple_T,
 	CoolUnion_T,
 	CoolVector_T,
-	CoolVoid_T,
+	CoolVoid_T
 } cool_type;
 
 
@@ -146,7 +146,7 @@ static cool_type_item type_details[] = {
 		{ CoolTuple_T, "CoolTuple_T" },
 		{ CoolUnion_T, "CoolUnion_T" },
 		{ CoolVector_T, "CoolVector_T" },
-		{ CoolVoid_T, "CoolVoid_T" },
+		{ CoolVoid_T, "CoolVoid_T" }
 
 };
 
@@ -208,7 +208,7 @@ typedef enum cool_type_ref {
 	CoolTuple_REF,
 	CoolUnion_REF,
 	CoolVector_REF,
-	CoolVoid_REF,
+	CoolVoid_REF
 } cool_type_ref;
 
 typedef struct cool_type_ref_item {
@@ -274,7 +274,7 @@ static cool_type_ref_item type_ref_details[] = {
 		{ CoolTuple_REF, "CoolTuple_REF" },
 		{ CoolUnion_REF, "CoolUnion_REF" },
 		{ CoolVector_REF, "CoolVector_REF" },
-		{ CoolVoid_REF, "CoolVoid_REF" },
+		{ CoolVoid_REF, "CoolVoid_REF" }
 
 };
 

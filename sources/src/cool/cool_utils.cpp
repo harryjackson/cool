@@ -18,7 +18,7 @@ void fill_size_t_buffer(size_t *rbuff, size_t buffsize) {
 double timer_start() {
   struct timeval t;
   //struct timezone tzp;
-  gettimeofday(&t, NULL);
+  gettimeofday(&t, nullptr);
   //printf("tv_sec=%d tv_usec=%d *1e-6=%f\n", t.tv_sec, t.tv_usec, t.tv_usec*1e-6);
   double time_start = t.tv_sec + t.tv_usec*1e-6;
   //t   = NULL;
@@ -32,13 +32,13 @@ inline double timer_stop(double start) {
 
 double timer_ops_persec(double start, size_t ops) {
   double duration = timer_stop(start);
-  double res = ((double)ops) / duration;
+  double res = static_cast<double>(ops) / duration;
   printf("timer duration = %f ops = %zu\n", duration, ops);
   return res;
 }
 
 double clock_start() {
-  double clock_start = clock()/(double)CLOCKS_PER_SEC;
+  double clock_start = clock()/static_cast<double>(CLOCKS_PER_SEC);
   return clock_start;
 }
 
@@ -48,24 +48,25 @@ inline double clock_stop(double start) {
 
 double clock_ops_persec(double start, size_t ops) {
   double duration = clock_stop(start);
-  double res = (double)ops/duration;
+  double res = static_cast<double>(ops)/duration;
   printf("clock duration = %f ops = %zu\n", duration, ops);
   return res;
 }
 
 
 size_t rand_cycle_number(size_t rtc) {
-   return (size_t)((size_t)time(NULL) % rtc) + 1;
+  int t = time(nullptr) % rtc + 1;
+  return static_cast<size_t>(t);
 }
 
 inline
 size_t rand_size_t(void) {
-  return (size_t)rand();
+  return static_cast<size_t>(rand());
 }
 
 char new_rand_char() {
   char c = base[rand_size_t() % base_size];
-  assert(0 < (int) c);
+  assert(0 < static_cast<int>(c));
   return c;
 }
 

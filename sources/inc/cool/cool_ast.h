@@ -4,6 +4,8 @@
 #include "cool/cool_types.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <iostream>
+#include <unordered_map>
 
 
 #define SYM_EXISTS(symt,string) (symt->ops->get(symt, string) != NULL)
