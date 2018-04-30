@@ -1,7 +1,7 @@
 #include "cool/cool_shunt.h"
 #include "cool/cool_stack.h"
 #include "cool/cool_lexer.h"
-#include "cool_utils.h"
+#include "cool/cool_utils.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -211,7 +211,7 @@ static void stack_test(size_t count) {
     for(p = 1; p <= n; p++) {
       pr     = malloc(sizeof(*pr));
       pr->op = tests2[i][0][p];
-      pr->v  = NULL;
+      pr->v  = -1;
       CoolShuntId id = get_shunt_id(pr);
       shunt->ops->shunt(shunt, id, pr);
     }
@@ -255,7 +255,7 @@ static void stack_test(size_t count) {
 
      //pr     = malloc(sizeof(*pr));
      //pr->op = tests2[i][0][p];
-     //pr->v  = NULL;
+     //pr->v  = -1;
      //assert(NULL);
      printf("tmp1=%d\n", tmp1->op);
      printf("tmp2=%d\n", tmp2->op);
@@ -311,7 +311,7 @@ static void test_shunter1() {
   //Add (
   pr = malloc(sizeof(*pr));
   pr->op = '(';
-  pr->v  = NULL;
+  pr->v  = -1;
   CoolShuntId id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   c_pair *s_pr1 = shunt->ops->s_pos(shunt, 0);
@@ -321,7 +321,7 @@ static void test_shunter1() {
   //Add Integer
   pr = malloc(sizeof(*pr));
   pr->op = 4;
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   //Not added to stack
@@ -334,7 +334,7 @@ static void test_shunter1() {
   /*------ TEST 3 --------*/
   pr = malloc(sizeof(*pr));
   pr->op = '+';
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   s_pr1 = shunt->ops->s_pos(shunt, 1);
@@ -347,7 +347,7 @@ static void test_shunter1() {
   /*------ TEST 4 --------*/
   pr = malloc(sizeof(*pr));
   pr->op = 9;
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   s_pr1 = shunt->ops->s_pos(shunt, 1);
@@ -362,7 +362,7 @@ static void test_shunter1() {
   /*------ TEST 5 --------*/
   pr = malloc(sizeof(*pr));
   pr->op = ')';
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   s_pr1 = shunt->ops->q_pos(shunt, 0);
@@ -418,7 +418,7 @@ static void test_shunter2() {
   //Add (
   pr = malloc(sizeof(*pr));
   pr->op = '(';
-  pr->v  = NULL;
+  pr->v  = -1;
   CoolShuntId id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   c_pair *s_pr1 = shunt->ops->s_pos(shunt, 0);
@@ -428,7 +428,7 @@ static void test_shunter2() {
   //Add Integer
   pr = malloc(sizeof(*pr));
   pr->op = 4;
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   //Not added to stack
@@ -441,7 +441,7 @@ static void test_shunter2() {
   /*------ TEST 3 --------*/
   pr = malloc(sizeof(*pr));
   pr->op = '+';
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   s_pr1 = shunt->ops->s_pos(shunt, 1);
@@ -454,7 +454,7 @@ static void test_shunter2() {
   /*------ TEST 4 --------*/
   pr = malloc(sizeof(*pr));
   pr->op = 9;
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   s_pr1 = shunt->ops->s_pos(shunt, 1);
@@ -469,7 +469,7 @@ static void test_shunter2() {
   /*------ TEST 5 --------*/
   pr = malloc(sizeof(*pr));
   pr->op = ')';
-  pr->v  = NULL;
+  pr->v  = -1;
   id = get_shunt_id(pr);
   shunt->ops->shunt(shunt, id, pr);
   s_pr1 = shunt->ops->q_pos(shunt, 0);

@@ -112,7 +112,7 @@ static int bcode_add(CoolBCode *c_bcode, CInst *inst) {
 
 static CInst * bcode_next(CoolBCode *c_bcode) {
   COOL_M_CAST_BCODE;
-  return obj->count;
+  return NULL;// TODO fix this NULL obj->count;
 }
 
 static int bcode_ispacked(CoolBCode *c_bcode) {

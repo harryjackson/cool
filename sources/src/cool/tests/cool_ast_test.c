@@ -49,9 +49,9 @@ int main() {
   CoolAstPkg * pkg   = ast->ops->new_pkg(ast, "Test");
 
   CoolAstActor *act  = pkg->ops->new_actor(pkg, "ActorTest");
-  CoolAstField *fld  = act->ops->new_field(act, "FieldTest");
+  act->ops->new_field(act, "FieldTest", CoolField_T);
 
-  CoolAstFunc  *func = act->ops->new_func(act, "FuncTest");
+  CoolAstFunc  *func = act->ops->new_func(act, "FuncTest", "testFunc");
   
   //CoolAst  *func = func->ops->new_arg(act, "")
   // num_tests = sizeof(basic_class_loader_tests)/sizeof(basic_class_loader_tests[0]);

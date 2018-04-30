@@ -38,7 +38,7 @@ int main() {
     bcode,
     3
   };
-  obj->ops->addMethod(obj, &inc_meth);
+  //obj->ops->addMethod(obj, &inc_meth);
 
   /* inc(double a) {return a + 1;} */
   char *main_sig  = "main:(IS)(I)";
@@ -52,7 +52,7 @@ int main() {
     main_bcode,
     2
   };
-  obj->ops->addMethod(obj, &main_meth);
+  //obj->ops->addMethod(obj, &main_meth);
 
   obj->ops->write(obj, bcode_file, "wb+");
   cool_bcode_delete(bc);
@@ -171,4 +171,4 @@ static int test_slurp() {
 }
 
 
-#include "cool_vm_undefs.h"
+#include "cool/cool_vm_undefs.h"

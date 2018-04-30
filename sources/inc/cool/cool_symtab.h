@@ -2,6 +2,7 @@
 #ifndef COOL_SYMTAB_H
 #define COOL_SYMTAB_H
 #include "cool/cool_limits.h"
+#include <stddef.h>
 //#include "cool/cool_uthash.h"
 
 

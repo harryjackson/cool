@@ -435,13 +435,13 @@ static void str_copy_value(char *dest, CoolToken *tok) {
 static cool_type tokid_to_cool_type(CoolTokenId tid) {
   switch(tid) {
     case T_TYPE_INT: {
-      return Integer_T;
+      return CoolInteger_T;
     };
     case T_TYPE_DOUBLE:  {
-      return Double_T;
+      return CoolDouble_T;
     };
     case T_TYPE_STRING:  {
-      return String_T;
+      return CoolString_T;
     };
   }
   abort();
@@ -465,13 +465,13 @@ static void parse_field(parser_obj *obj, CoolAstActor *actor) {
 
     switch(tid) {
       case T_TYPE_INT: {
-        actor->ops->new_field(actor, field_name, Integer_T);
+        actor->ops->new_field(actor, field_name, CoolInteger_T);
       }break;
       case T_TYPE_DOUBLE:  {
-        actor->ops->new_field(actor, field_name, Double_T);
+        actor->ops->new_field(actor, field_name, CoolDouble_T);
       }break;
       case T_TYPE_STRING:  {
-        actor->ops->new_field(actor, field_name, String_T);
+        actor->ops->new_field(actor, field_name, CoolString_T);
       }break;
     }
 }

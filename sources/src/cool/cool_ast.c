@@ -354,7 +354,7 @@ static void symt_callback(CoolSymtab *t, const void *key, void *val) {
     assert(s->tree->k         == AST_IMPORT);
     assert(s->tree->parent->k == AST_PACKAGE);
     ast_import_obj imp = s->tree->n.import;
-    pool_id = emit_constant(name, Import_T);
+    pool_id = emit_constant(name, CoolImport_T);
     imp.pool_id = pool_id;
   }
   else if(s->type == SYM_ACTOR) {
@@ -362,7 +362,7 @@ static void symt_callback(CoolSymtab *t, const void *key, void *val) {
     assert(s->tree->parent->k == AST_PACKAGE);
     ast_pkg_obj   *pkg = &s->tree->parent->n.pkg;
     ast_actor_obj *act = &s->tree->n.actor;
-    pool_id = emit_actor(Actor_REF, pkg->pool_id, name, act->type);
+    pool_id = emit_actor(CoolActor_REF, pkg->pool_id, name, act->type);
     act->pool_id = pool_id;
 
     act->fields->ops->visit(act->fields, symt_callback);
@@ -374,7 +374,7 @@ static void symt_callback(CoolSymtab *t, const void *key, void *val) {
     ast_actor_obj *act = &s->tree->parent->n.actor;
     ast_field_obj *fld = &s->tree->n.field;
 
-    pool_id = emit_field(Field_REF, act->pool_id, name, fld->type);
+    pool_id = emit_field(CoolField_REF, act->pool_id, name, fld->type);
     fld->pool_id = pool_id;
     //pool_id = emit_name(name, Field_T, act->pool_id);
   }
@@ -385,7 +385,7 @@ static void symt_callback(CoolSymtab *t, const void *key, void *val) {
     ast_field_obj *fld = &s->tree->n.field;
     //printf("Actor pool id %zd\n", fld->actor->n.actor.pool_id);
 
-    pool_id = emit_field(Field_REF, act->pool_id, name, fld->type);
+    pool_id = emit_field(CoolField_REF, act->pool_id, name, fld->type);
     fld->pool_id = pool_id;
     //pool_id = emit_name(name, Field_T, act->pool_id);
     
@@ -397,8 +397,8 @@ static void symt_callback(CoolSymtab *t, const void *key, void *val) {
     ast_actor_obj *act  = &s->tree->parent->n.actor;
     ast_func_obj  *func = &s->tree->n.func;
     assert(func->m    == M_FUNC);
-    assert(func->type == Function_T);
-    pool_id = emit_function(Function_REF, act->pool_id, name, func->type);
+    assert(func->type == CoolFunction_T);
+    pool_id = emit_function(CoolFunction_REF, act->pool_id, name, func->type);
     func->pool_id = pool_id;
     size_t i = 0;
 
@@ -409,11 +409,11 @@ static void symt_callback(CoolSymtab *t, const void *key, void *val) {
       //printf("found %s\n", t->n.arg.name);
       ast_arg_obj *arg = &func->args[i]->n.arg;
       assert(arg->number == i);
-      pool_id = emit_function_arg(Arg_REF, func->pool_id, arg->name, arg->type);
+      pool_id = emit_function_arg(CoolArg_REF, func->pool_id, arg->name, arg->type);
       //pool_id = emit_constant(arg->name, arg->type);
       arg->pool_id = pool_id;
     }
-    ast_func_blk foo;
+    //ast_func_blk foo;
     //func->block->
 
   }
@@ -433,7 +433,7 @@ static void ast_print(CoolAst *c_ast) {
   COOL_M_CAST_AST;
   printf(";Emit code\n\n");
   ast_pkg_impl *pkg_impl =  obj->pkg[0];
-  ssize_t pool_id = emit_constant(pkg_impl->obj->n.pkg.name, Package_T);
+  ssize_t pool_id = emit_constant(pkg_impl->obj->n.pkg.name, CoolPackage_T);
   pkg_impl->obj->n.pkg.pool_id = pool_id;
   //CoolSymtab *actors  =  pkg_impl->obj->n.pkg.actors;
   CoolSymtab *actors  =  pkg_impl->obj->symt;
@@ -513,7 +513,7 @@ static CoolAstActor * new_actor_ast(CoolAstPkg *c_pkg, const char *name) {
 
   tree->n.actor.m         = M_ACTOR;
   tree->symt              = cool_symtab_new(SymStringVoid);
-  tree->n.actor.type      = Actor_T;
+  tree->n.actor.type      = CoolActor_T;
   tree->n.actor.fields    = cool_symtab_new(SymStringVoid);
   tree->n.actor.functions = cool_symtab_new(SymStringVoid);
   tree->n.actor.m         = M_ACTOR;
@@ -572,7 +572,7 @@ static CoolAstFunc * new_func_ast(CoolAstActor *c_act, const char *obj_ref, cons
   tree->m                = M_AST;
 
   tree->n.func.m         = M_FUNC;
-  tree->n.func.type      = Function_T;
+  tree->n.func.type      = CoolFunction_T;
   tree->n.func.arg_count = 0;
   strcpy(tree->n.func.name, name);
 

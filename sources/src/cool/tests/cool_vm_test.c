@@ -23,9 +23,9 @@
 #define R8 8
 #define R9 9
 #define R129 129
-static Creg cpool[] = {
-  {CoolFunctionId, {{0}}}
-};
+//static Creg cpool[] = {
+//  {CoolFunctionId, {{0}}}
+//};
 
 
 static void while_a_lt_hundred() {
@@ -77,7 +77,7 @@ static void while_a_lt_hundred() {
   //double start  = timer_start();
   size_t i = 0;
   while(i++ < ops) {
-    v->ops->exec(v, byte_code_array, i_c);
+    //v->ops->exec(v, byte_code_array, i_c);
   }
   //double opspersec       = timer_ops_persec(start, v->ops->ops(v));
   double clock_opspersec = clock_ops_persec(cstart, v->ops->ops(v));

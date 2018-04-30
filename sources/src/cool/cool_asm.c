@@ -137,14 +137,14 @@ void cool_asm_delete(CoolASM *c_asm) {
   free(c_asm);
 }
 
-static int peek(asm_obj *obj, int ahead) {
-  size_t peek_pos = obj->pos + ahead;
-
-  if(peek_pos <= obj->buf->size) {
-    return obj->buf->mem.b8[obj->pos + ahead];
-  }
-  return -1;
-}
+//static int peek(asm_obj *obj, int ahead) {
+//  size_t peek_pos = obj->pos + (size_t) ahead;
+//
+//  if(peek_pos <= obj->buf->size) {
+//    return obj->buf->mem.b8[obj->pos + ahead];
+//  }
+//  return -1;
+//}
 
 
 static int tok_peek(asm_obj *obj, tid id) {
@@ -611,7 +611,7 @@ static void add_string_const(asm_obj *obj) {
   assert(ID.id  == T_ID);
   assert(VAL.id == T_DQ_STRING);
 
-  Creg *reg = cool_creg_new(String_T);
+  Creg *reg = cool_creg_new(CoolString_T);
 
   reg->u.ptr = malloc(VAL.len);
   memcpy(reg->u.ptr, &obj->buf->mem.b8[VAL.pos], VAL.len);
@@ -635,7 +635,7 @@ static void add_integer_const(asm_obj *obj) {
   assert(ID.id  == T_ID);
   assert(VAL.id == T_INTEGER);
 
-  Creg *reg = cool_creg_new(Integer_T);
+  Creg *reg = cool_creg_new(CoolInteger_T);
   reg->u.si = strtoul((const char *)&obj->buf->mem.b8[VAL.pos], NULL, 10);
   obj->const_q->ops->enque(obj->const_q, reg);
   assert(1 == 9);
@@ -695,7 +695,7 @@ static void parse_global_constants(asm_obj *obj) {
         //printf("%.5s\n", &obj->buf->mem.b8[T.pos + T.len - 1]);
         assert(obj->buf->mem.b8[T.pos]             == '"');
         assert(obj->buf->mem.b8[T.pos + T.len - 1] == '"');
-        Creg *reg = cool_creg_new(String_T);
+        Creg *reg = cool_creg_new(CoolString_T);
         reg->u.ptr = malloc(T.len);
         /**
          We want to copy the string without the quotes and we need to 
@@ -716,7 +716,7 @@ static void parse_global_constants(asm_obj *obj) {
         assert(errno == 0);
         free(t);
         t = NULL;
-        Creg *reg = cool_creg_new(Double_T);
+        Creg *reg = cool_creg_new(CoolDouble_T);
         reg->u.d = d;
         obj->const_q->ops->enque(obj->const_q, reg);
       };break;
@@ -728,7 +728,7 @@ static void parse_global_constants(asm_obj *obj) {
 
         long idx = strtol((char *)&obj->buf->mem.b8[T.pos], NULL, 10);
         assert(errno == 0);
-        Creg *reg = cool_creg_new(Integer_T);
+        Creg *reg = cool_creg_new(CoolInteger_T);
         reg->u.ui = idx;
         assert(idx >=0 && idx <= 500);
         obj->const_q->ops->enque(obj->const_q, reg);
@@ -742,7 +742,7 @@ static void parse_global_constants(asm_obj *obj) {
         free(t);
         t = NULL;
         assert(T.id == T_ID);
-        Creg *reg = cool_creg_new(Class_T);
+        Creg *reg = cool_creg_new(CoolClass_T);
         reg->u.str = calloc(1, T.len);
         memcpy(reg->u.ptr, &obj->buf->mem.b8[T.pos], T.len);
         reg->u.str[T.len] = '\0';
@@ -761,7 +761,7 @@ static void parse_global_constants(asm_obj *obj) {
         parse_sig(obj, &T, sig);
 
         assert(T.id == T_ID);
-        Creg *reg = cool_creg_new(Function_T);
+        Creg *reg = cool_creg_new(CoolFunction_T);
 
         size_t sig_len = strnlen(sig, COOL_MAX_OBJECT_METHOD_SIGNATURE);
 

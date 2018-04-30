@@ -25,15 +25,19 @@ static void   malloc_fill_list(CoolList *list, const size_t runs, const size_t s
 static size_t deplete_list(CoolList *list, const size_t runs, const size_t size, const size_t rate);
 static size_t fill_usage_list(CoolList *list, const size_t runs, const size_t size, const size_t rate);
 
-static int size_t_find(CoolNode * data, CoolNode * item);
-static int cmp(CoolNode * data, CoolNode * item);
+static int size_t_find(void * data, void * item);
+static int cmp(void * data, void * item);
 
 static void test_push_pop(size_t alloc_count, size_t search_count);
 static void test_push_pop_char_ptr(void);
 
-static int size_t_find(CoolNode * data, CoolNode * item) {
+static int size_t_find(void * data, void * item) {
   assert(data);
   assert(item);
+
+  CoolNode *dataP = (CoolNode*) data;
+  CoolNode *itemP = (CoolNode*) item;
+
   //printf("%zu == %zu\n", *(size_t*)data, fr->item);
   int ret = memcmp(data, item, 8);
   if(ret == 0) {
@@ -52,7 +56,7 @@ static void test_push_pop(size_t alloc_count, size_t search_count) {
   CoolList *list = cool_list_new(0);
   for(i = 0; i < alloc_count; i++) {
     size_t s    = new_random_size(COOL_RAND_BUFF_SIZE);
-    CoolNode *n = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], &val_buff[s]);
+    CoolNode *n = cool_node_new(CoolDouble_T, sizeof(s), &key_buff[s], &val_buff[s]);
     list->ops->push(list, n);
   }
   size_t   total_search_ops = 0;
@@ -60,7 +64,7 @@ static void test_push_pop(size_t alloc_count, size_t search_count) {
   //start_t = timer_start();
   for(i = 0; i < search_count; i++) {
     size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
-    CoolNode *n     = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], &val_buff[s]);
+    CoolNode *n     = cool_node_new(CoolDouble_T, sizeof(s), &key_buff[s], &val_buff[s]);
     CoolNode *found = list->ops->find(list, &size_t_find, n);
     if(found != NULL) {
       assert(memcmp((void*)n, (void*)found, 16) == 0);
@@ -72,7 +76,7 @@ static void test_push_pop(size_t alloc_count, size_t search_count) {
 }
 
 
-static int cmp(CoolNode * data, CoolNode * node) {
+static int cmp(void * data, void * node) {
   assert(data);
   assert(node);
   CoolNode *n = (CoolNode*)node;
@@ -107,7 +111,7 @@ static void test_push_pop_char_ptr(void) {
   size_t i = 0;
   CoolList *list = cool_list_new(0);
   for(i = 0; i < 4; i++) {
-    CoolNode *node = cool_node_new(CoolDoubleId,
+    CoolNode *node = cool_node_new(CoolDouble_T,
                                    strlen(foos[i]), foos[i], foos[i]);
     list->ops->push(list, node);
   }
@@ -123,7 +127,7 @@ static void test_push_find_char_ptr(void) {
   size_t i = 0;
   CoolList *list = cool_list_new(0);
   for(i = 0; i < 4; i++) {
-    CoolNode *node = cool_node_new(CoolDoubleId,
+    CoolNode *node = cool_node_new(CoolDouble_T,
                                    strlen(foos[i]), foos[i], foos[i]);
     list->ops->push(list, node);
   }
@@ -136,10 +140,10 @@ static void test_push_find_char_ptr(void) {
   assert(list->ops->empty(list));
 
   //size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
-  CoolNode *node1 = cool_node_new(CoolDoubleId, strlen(foos[2]), foos[2], foos[2]);
-  CoolNode *node2 = cool_node_new(CoolDoubleId, strlen(foos[2]), foos[2], foos[2]);
-  CoolNode *node3 = cool_node_new(CoolDoubleId, strlen(foos[0]), foos[2], foos[2]);
-  CoolNode *node4 = cool_node_new(CoolDoubleId, strlen(foos[2]), foos[2], foos[2]);
+  CoolNode *node1 = cool_node_new(CoolDouble_T, strlen(foos[2]), foos[2], foos[2]);
+  CoolNode *node2 = cool_node_new(CoolDouble_T, strlen(foos[2]), foos[2], foos[2]);
+  CoolNode *node3 = cool_node_new(CoolDouble_T, strlen(foos[0]), foos[2], foos[2]);
+  CoolNode *node4 = cool_node_new(CoolDouble_T, strlen(foos[2]), foos[2], foos[2]);
 
   assert(node1->ops->cmp(node1, node2));
   int ret = memcmp(node1->obj, node2->obj, 16);
@@ -170,13 +174,13 @@ static void test_list_as_queue() {
   CoolList *list = cool_list_new(0);
   
   for(i = 0; i < 4; i++) {
-    CoolNode *node = cool_node_new(CoolDoubleId,
+    CoolNode *node = cool_node_new(CoolDouble_T,
                                     strlen(foos[i]), foos[i], foos[i]);
     list->ops->enque(list, node);
   }
 
   for(i = 0; i < 4; i++) {
-    CoolNode *node = cool_node_new(CoolDoubleId,
+    CoolNode *node = cool_node_new(CoolDouble_T,
                                    strlen(foos[i]), foos[i], foos[i]);
     CoolNode *node2 = list->ops->deque(list);
     assert(node->ops->cmp(node, node2));
@@ -195,7 +199,7 @@ static void test_list_random_apis(size_t count) {
   size_t insert = 0;
   int free_node = 0;
   for(i = 0; i < count; i++) {
-    CoolNode *node = cool_node_new(CoolDoubleId,
+    CoolNode *node = cool_node_new(CoolDouble_T,
                                    strlen(foos[1]), foos[1], foos[1]);
     size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
     int api = 2 % api_num;

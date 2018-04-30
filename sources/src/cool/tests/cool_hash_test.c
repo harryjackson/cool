@@ -71,7 +71,7 @@ static void hash_create_put_get_delete(size_t count) {
   CoolNode * node;
   for(i = 0; i < count; i++) {
     size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
-    node = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], &val_buff[s]);
+    node = cool_node_new(CoolDouble_T, sizeof(s), &key_buff[s], &val_buff[s]);
     hash->ops->put(hash, node);
   }
   cool_hash_delete(hash);
@@ -93,7 +93,7 @@ static void hash_compare_apr_perf(const size_t count) {
   for(i = 0; i < count; i++) {
     size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
     //node_apr = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], &val_buff[s]);
-    node_col = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], &val_buff[s]);
+    node_col = cool_node_new(CoolDouble_T, sizeof(s), &key_buff[s], &val_buff[s]);
     apr_hash_set(ht, &key_buff[s], sizeof(s), &val_buff[s]);
     hash->ops->put(hash, node_col);
   }
@@ -113,13 +113,13 @@ static void hash_compare_apr_perf(const size_t count) {
 
   CoolNode * res;
   size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
-  node = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], NULL);
+  node = cool_node_new(CoolDouble_T, sizeof(s), &key_buff[s], NULL);
 
   double start_t = timer_start();
   for(i = 0; i < count; i++) {
     size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
     //printf("searched for pos %zu == %zu\n", s, rbuff[s]);
-    node->ops->edit(node, CoolDoubleId, sizeof(s), &key_buff[s], NULL);
+    node->ops->edit(node, CoolDouble_T, sizeof(s), &key_buff[s], NULL);
     res = hash->ops->get(hash, node);
     //res = hash->ops->get(hash, node);
     //cool_node_delete(node);
@@ -182,14 +182,14 @@ static void * search_cool(apr_thread_t *thr, void * arg) {
   size_t i = 0;
   CoolNode * node;
   size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
-  node = cool_node_new(CoolDoubleId, sizeof(s), &key_buff[s], NULL);
+  node = cool_node_new(CoolDouble_T, sizeof(s), &key_buff[s], NULL);
   //hash_node hn = *(hash_node*)node->obj;
   //hn.type = CoolDoubleId;
   //hn.keysize = sizeof(s);
   //size_t test = 100;
   for(i = 0; i < count; i++) {
     size_t s = new_random_size(COOL_RAND_BUFF_SIZE);
-    node->ops->edit(node, CoolDoubleId, sizeof(s), &key_buff[s], NULL);
+    node->ops->edit(node, CoolDouble_T, sizeof(s), &key_buff[s], NULL);
     //hn.key = &rbuff[s];
     //cool_MurmurHash3_x86_32(&hn.key, sizeof(s), 0xdeadbeef, &hn.hash);
     //cool_times_33_hash(hn.key, hn.keysize);
@@ -336,10 +336,10 @@ static void put_get_dupes() {
   assert(apr__hash_c == AR_MAX);
 
   for(i = 0;i < loop ; i++) {
-    CoolNode *node        = cool_node_new(CoolDoubleId, 8, &keys[i], &vals[i]);
+    CoolNode *node        = cool_node_new(CoolDouble_T, 8, &keys[i], &vals[i]);
     glob_cool_hash->ops->put(glob_cool_hash, node);
 
-    CoolNode *search_node = cool_node_new(CoolDoubleId, 8, &keys[i], &vals[i]);
+    CoolNode *search_node = cool_node_new(CoolDouble_T, 8, &keys[i], &vals[i]);
     CoolNode * ctp        = glob_cool_hash->ops->get(glob_cool_hash, search_node);
     assert(ctp != NULL);
     assert(search_node->ops->hash(search_node) == ctp->ops->hash(ctp));
@@ -349,10 +349,10 @@ static void put_get_dupes() {
   }
 
   for(i = 0;i < loop ; i++) {
-    CoolNode *node        = cool_node_new(CoolDoubleId, 8, &keys[i], &vals[i]);
+    CoolNode *node        = cool_node_new(CoolDouble_T, 8, &keys[i], &vals[i]);
     glob_cool_hash->ops->put(glob_cool_hash, node);
 
-    CoolNode *search_node = cool_node_new(CoolDoubleId, 8, &keys[i], &vals[i]);
+    CoolNode *search_node = cool_node_new(CoolDouble_T, 8, &keys[i], &vals[i]);
     CoolNode * ctp        = glob_cool_hash->ops->get(glob_cool_hash, search_node);
     assert(ctp != NULL);
     assert(search_node->ops->hash(search_node) == ctp->ops->hash(ctp));
@@ -379,12 +379,12 @@ static int smoke_test_put() {
   size_t val = key;
   apr_ssize_t ksize = sizeof(key);
   apr_hash_set(glob_apr_hash, &key_buff[key], ksize , &val_buff[val]);
-  CoolNode *node  = cool_node_new(CoolDoubleId, ksize, &key_buff[key], &val_buff[val]);
+  CoolNode *node  = cool_node_new(CoolDouble_T, ksize, &key_buff[key], &val_buff[val]);
   glob_cool_hash->ops->put(glob_cool_hash, node);
-  CoolNode *node2 = cool_node_new(CoolDoubleId, ksize, &key_buff[key], t_ptr);
+  CoolNode *node2 = cool_node_new(CoolDouble_T, ksize, &key_buff[key], t_ptr);
   glob_cool_hash->ops->put(glob_cool_hash, node2);
   apr_hash_set(glob_apr_hash, &key_buff[key], ksize , t_ptr);
-  CoolNode * snode = cool_node_new(CoolDoubleId, ksize, &key_buff[key], NULL);
+  CoolNode * snode = cool_node_new(CoolDouble_T, ksize, &key_buff[key], NULL);
   CoolNode *sn     = glob_cool_hash->ops->get(glob_cool_hash, snode);
   //printf("1 Inserting (%zu -> %zu)\n", key_buff[key], val_buff[val]);
   //printf("kv value (%zu -> %zu)\n", kv_buff[key][val], val_buff[val]);
@@ -435,10 +435,10 @@ int main() {
 
 //    printf("1 Inserting (%zu -> %zu)\n", key_buff[key], val_buff[val]);
     apr_hash_set(glob_apr_hash,     &key_buff[key], ksize, &val_buff[val]);
-    CoolNode *node        = cool_node_new(CoolDoubleId, ksize, &key_buff[key], &val_buff[val]);
+    CoolNode *node        = cool_node_new(CoolDouble_T, ksize, &key_buff[key], &val_buff[val]);
     uint32_t n_hash       = node->ops->hash(node);
 
-    CoolNode * snode = cool_node_new(CoolDoubleId, ksize, &key_buff[key], &val_buff[val]);
+    CoolNode * snode = cool_node_new(CoolDouble_T, ksize, &key_buff[key], &val_buff[val]);
     uint32_t d_hash       = snode->ops->hash(snode);
 //printf("3 Inserting (%zu -> %zu)\n", key_buff[key], val_buff[val]);
     glob_cool_hash->ops->put(glob_cool_hash, node);
@@ -501,7 +501,7 @@ int main() {
     size_t *val = keycheck[key];
     if(val == NULL) {continue;}
 
-    CoolNode *node = cool_node_new(CoolDoubleId, sizeof(key), &key, NULL);
+    CoolNode *node = cool_node_new(CoolDouble_T, sizeof(key), &key, NULL);
     CoolNode * c_res  = glob_cool_hash->ops->get(glob_cool_hash, node);
     size_t   * a_res  = (size_t*)apr_hash_get(glob_apr_hash, &key, sizeof(key));
     //assert(a_res != NULL);

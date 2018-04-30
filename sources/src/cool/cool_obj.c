@@ -327,7 +327,7 @@ static CoolObjFunc * obj_newFunc(CoolObj *c_obj, const char *sig) {
   func_obj    * f_obj = calloc(1, sizeof(func_obj));
 
   f_obj->id           = id;
-  f_obj->cid          = Function_T;
+  f_obj->cid          = CoolFunction_T;
   memcpy(f_obj->sig, sig, sig_size);
   of->obj = f_obj;
   return of;
@@ -384,23 +384,23 @@ static void obj_addConsts(CoolObj *c_obj, CoolQueue *q) {
     Creg *reg = q->ops->deque(q);
     assert(reg != NULL);
 
-    assert(reg != Nill_T);
+    assert(reg != CoolNill_T);
    // printf("%s", )
 
-    assert(reg->t == Integer_T
-           || reg->t == Double_T
-           || reg->t ==String_T
-           || reg->t == Object_T
-           || reg->t == Function_T
-           || reg->t == Class_T
+    assert(reg->t == CoolInteger_T
+           || reg->t == CoolDouble_T
+           || reg->t == CoolString_T
+           || reg->t == CoolObject_T
+           || reg->t == CoolFunction_T
+           || reg->t == CoolClass_T
            );
 
     obj->const_regs[i] = *reg;
 
-    if(   reg->t == String_T
-       || reg->t == Object_T
-       || reg->t == Function_T
-       || reg->t == Class_T
+    if(   reg->t == CoolString_T
+       || reg->t == CoolObject_T
+       || reg->t == CoolFunction_T
+       || reg->t == CoolClass_T
        )
     {
       /**

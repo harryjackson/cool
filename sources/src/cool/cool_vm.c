@@ -338,7 +338,7 @@ Creg * cool_creg_new(VMType type) {
  may need to be free'd here.
  */
 void cool_creg_delete(Creg *r) {
-  if(r->t == String_T || r->t == Object_T) {
+  if(r->t == CoolString_T || r->t == CoolObject_T) {
     free(r->u.ptr);
   }
   free(r);
@@ -477,7 +477,7 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
   class->con_count = c_o->const_regs_count;
   class->constants = calloc(1, sizeof(Creg) * (class->con_count + 1));
   assert(class->constants);
-  class->constants[0].t    = Nill_T;
+  class->constants[0].t    = CoolNill_T;
   class->constants[0].u.si = 0;
 
   char   class_func_sig[COOL_MAX_OBJECT_METHOD_SIGNATURE];
@@ -499,7 +499,7 @@ static void vm_load_constant_pool(Class *class, class_obj *c_o) {
   for(i = 0; i < class->con_count; i++, idx++) {
     class->constants[idx] = c_o->const_regs[i];
 
-    if(class->constants[idx].t == Function_T) {
+    if(class->constants[idx].t == CoolFunction_T) {
       if(memcmp(class_func_sig, class->constants[idx].u.str, class_func_sig_len) == 0) {
         class->constants[idx].func.ext = 0;
         printf("Internal Function sig=%s\n", class->constants[idx].u.str);
@@ -573,7 +573,7 @@ void vm_loader(vm_obj *obj, CoolObj * cool_obj) {
   CoolQueue * ext_addrs = cool_queue_new();
 
   for(size_t i = 0; i < class->con_count; i++) {
-    if(class->constants[i].t == Function_T) {
+    if(class->constants[i].t == CoolFunction_T) {
       if(class->constants[i].func.ext == 1) {
         Creg * reg = &class->constants[i];
         ext_addrs->ops->enque(ext_addrs, reg);
@@ -852,11 +852,11 @@ void CALLOP_ADD(stk_frame *f) {
     abort();
   }
   cool_type type = f->r[rb].t;
-  assert(type == Integer_T || type == Double_T);
+  assert(type == CoolInteger_T || type == CoolDouble_T);
 
   f->r[ra].t = f->r[rb].t;
 
-  if(type == Integer_T) {
+  if(type == CoolInteger_T) {
     f->r[ra].u.si = f->r[rb].u.si + f->r[rc].u.si;
   }
   else {
@@ -899,11 +899,11 @@ void CALLOP_DIV(stk_frame *f) {
     abort();
   }
   cool_type type = f->r[rb].t;
-  assert(type == Integer_T || type == Double_T);
+  assert(type == CoolInteger_T || type == CoolDouble_T);
 
   f->r[ra].t = f->r[rb].t;
 
-  if(type == Integer_T) {
+  if(type == CoolInteger_T) {
     f->r[ra].u.si = f->r[rb].u.si / f->r[rc].u.si;
   }
   else {
@@ -926,8 +926,8 @@ void CALLOP_EQ(stk_frame *f) {
     fprintf(stderr, "Mixed type Comparisons are not permitted");
     abort();
   }
-  f->r[ra].t    = Integer_T;
-  if(f->r[rb].t == Integer_T) {
+  f->r[ra].t    = CoolInteger_T;
+  if(f->r[rb].t == CoolInteger_T) {
     f->r[ra].u.si = (f->r[rb].u.si == f->r[rc].u.si);
   }
   else {
@@ -987,8 +987,8 @@ void CALLOP_LE(stk_frame *f) {
     fprintf(stderr, "Mixed type Comparisons are not permitted");
     abort();
   }
-  f->r[ra].t    = Integer_T;
-  if(f->r[rb].t == Integer_T) {
+  f->r[ra].t    = CoolInteger_T;
+  if(f->r[rb].t == CoolInteger_T) {
     f->r[ra].u.si = (f->r[rb].u.si <= f->r[rc].u.si);
   }
   else {
@@ -1021,8 +1021,8 @@ void CALLOP_LT(stk_frame *f) {
     fprintf(stderr, "Mixed type Comparisons are not permitted");
     abort();
   }
-  f->r[ra].t    = Integer_T;
-  if(f->r[rb].t == Integer_T) {
+  f->r[ra].t    = CoolInteger_T;
+  if(f->r[rb].t == CoolInteger_T) {
     f->r[ra].u.si = (f->r[rb].u.si < f->r[rc].u.si);
   }
   else {
@@ -1056,11 +1056,11 @@ void CALLOP_MOD(stk_frame *f) {
     abort();
   }
   cool_type type = f->r[rb].t;
-  assert(type == Integer_T || type == Double_T);
+  assert(type == CoolInteger_T || type == CoolDouble_T);
 
   f->r[ra].t = f->r[rb].t;
 
-  if(type == Integer_T) {
+  if(type == CoolInteger_T) {
     f->r[ra].u.si = f->r[rb].u.si % f->r[rc].u.si;
   }
   else {
@@ -1102,11 +1102,11 @@ C_INLINE void CALLOP_POW(stk_frame *f) {
     abort();
   }
   cool_type type = f->r[rb].t;
-  assert(type == Integer_T || type == Double_T);
+  assert(type == CoolInteger_T || type == CoolDouble_T);
 
   f->r[ra].t = f->r[rb].t;
 
-  if(type == Integer_T) {
+  if(type == CoolInteger_T) {
     f->r[ra].u.si = (int64_t)(powl(f->r[rb].u.si, f->r[rc].u.si) + 0.25);
     //printf("%lld\n", f->r[ra].u.si);
   }
@@ -1129,11 +1129,11 @@ void CALLOP_MUL(stk_frame *f) {
     abort();
   }
   cool_type type = f->r[rb].t;
-  assert(type == Integer_T || type == Double_T);
+  assert(type == CoolInteger_T || type == CoolDouble_T);
 
   f->r[ra].t = f->r[rb].t;
 
-  if(type == Integer_T) {
+  if(type == CoolInteger_T) {
     f->r[ra].u.si = f->r[rb].u.si * f->r[rc].u.si;
   }
   else {
@@ -1218,11 +1218,11 @@ void CALLOP_SUB(stk_frame *f) {
     abort();
   }
   cool_type type = f->r[rb].t;
-  assert(type == Integer_T || type == Double_T);
+  assert(type == CoolInteger_T || type == CoolDouble_T);
 
   f->r[ra].t = f->r[rb].t;
 
-  if(type == Integer_T) {
+  if(type == CoolInteger_T) {
     f->r[ra].u.si = f->r[rb].u.si - f->r[rc].u.si;
   }
   else {
@@ -1271,10 +1271,10 @@ static void print_instruction(stk_frame *f) {
   for(reg = 1; reg < 6; reg++) {
     //printf("%zu\n", f->r[reg].t);
     switch(f->r[reg].t) {
-      case Integer_T: printf("%4lld ", f->r[reg].u.si);break;
-      case Double_T : printf("%6.1f "  , f->r[reg].u.d);break;
-      case String_T : printf("%4s "  , f->r[reg].u.str);break;
-      case Nill_T   : printf("%5s "  , "Nill");break;
+      case CoolInteger_T: printf("%4lld ", f->r[reg].u.si);break;
+      case CoolDouble_T : printf("%6.1f "  , f->r[reg].u.d);break;
+      case CoolString_T : printf("%4s "  , f->r[reg].u.str);break;
+      case CoolNill_T   : printf("%5s "  , "Nill");break;
       default: abort();
     }
   }

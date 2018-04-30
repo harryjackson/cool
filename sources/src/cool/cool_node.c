@@ -246,7 +246,7 @@ inline static int node_cmp_strings(CoolNode *a, CoolNode *b) {
   node_obj *oa = (node_obj*)a->obj;
   node_obj *ob = (node_obj*)b->obj;
   assert(oa->type == ob->type);
-  cool_type foo = Void_T;
+  cool_type foo = CoolVoid_T;
   /*printf("Searching for k=%zu have k=%zu\n",
          *(size_t*)bb->obj->key,
          *(size_t*)aa->obj->key);
