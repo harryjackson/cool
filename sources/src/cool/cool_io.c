@@ -30,6 +30,9 @@ CBuff * cool_cbuff_new_from_file(const char *fname) {
 
   CBuff * buf = malloc(sizeof(CBuff));
   assert(buf);
+  assert(buf->mem);
+  assert(buf->size >= 4);
+
   buf->mem.b8 = malloc(buf->size);
   assert(buf->mem.b8);
   buf->size = s;

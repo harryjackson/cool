@@ -57,7 +57,7 @@
  
  log.asm == hand written casm test fixture.
 */
-#define COOL_CLASS_PATH "/git/ghub/cool/src/cool/tests/asm"
+#define COOL_CLASS_PATH "/git/cool/sources/src/cool/tests/asm"
 
 
 /**

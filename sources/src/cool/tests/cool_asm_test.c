@@ -24,35 +24,35 @@ typedef struct asm_test  {
 
 
 /**
- These tests are using the EQ oeprator for all tests
+ These tests are using the EQ operator for all tests
  */
 static asm_test basic_math_tests[] = {
   {1, "Add",
-    "/git/ghub/cool/src/cool/tests/asm/test_add.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_add.asm"
   },
   {1, "Mul",
-    "/git/ghub/cool/src/cool/tests/asm/test_mul.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_mul.asm"
   },
   {1, "Sub",
-    "/git/ghub/cool/src/cool/tests/asm/test_sub.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_sub.asm"
   },
   {1, "Div",
-    "/git/ghub/cool/src/cool/tests/asm/test_div.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_div.asm"
   },
   {1, "Pow",
-    "/git/ghub/cool/src/cool/tests/asm/test_pow.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_pow.asm"
   },
   {1, "Mod",
-    "/git/ghub/cool/src/cool/tests/asm/test_mod.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_mod.asm"
   },
 };
 
 static asm_test basic_call_func_tests[] = {
   {0, "a = 0; while(a < 100) {a = inc(a);} return 0;",
-      "/git/ghub/cool/src/cool/tests/asm/test_while_lt_100_call_inc.asm"
+      "/git/cool/sources/src/cool/tests/asm/test_while_lt_100_call_inc.asm"
   },
   {1, "main(){int(mul())};",
-    "/git/ghub/cool/src/cool/tests/asm/test_main_call_inc_call_mul.asm"
+    "/git/cool/sources/src/cool/tests/asm/test_main_call_inc_call_mul.asm"
   },
 };
 
