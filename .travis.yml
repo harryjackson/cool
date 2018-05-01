@@ -1,0 +1,63 @@
+os:
+  - linux
+  - osx
+
+language: c
+
+dist: trusty
+
+env:
+    matrix:
+      - TARGET=distcheck
+      - TARGET=test
+      - TARGET=coverage
+      - OS=el DIST=6
+      - OS=el DIST=7
+      - OS=fedora DIST=26
+      - OS=fedora DIST=27
+      - OS=fedora DIST=rawhide
+      - OS=ubuntu DIST=trusty
+      - OS=ubuntu DIST=xenial
+      - OS=ubuntu DIST=artful
+      - OS=debian DIST=wheezy
+      - OS=debian DIST=jessie
+      - OS=debian DIST=stretch
+      - OS=ubuntu DIST=xenial ARCH=i386
+      - OS=ubuntu DIST=artful ARCH=i386
+      - OS=debian DIST=wheezy ARCH=i386
+      - OS=debian DIST=jessie ARCH=i386
+      - OS=debian DIST=stretch ARCH=i386
+      - OS=debian DIST=sid ARCH=i386
+
+
+branches:
+  only:
+  - master
+  - dev
+
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-7
+      - g++-7
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew update ;
+      brew install cmake ;
+    fi
+
+script:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      export CC=gcc-7 ;
+      export CXX=g++-7 ;
+    fi
+  - cmake --version
+  - mkdir -p build
+  - cd build 
+  - cmake -G "Unix Makefiles" ../sources/
+  - make
+  - make test
