@@ -1,0 +1,33 @@
+os:
+  - linux
+  - osx
+
+language: c
+
+dist: trusty
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gcc-7
+      - g++-7
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      brew update ;
+      brew install cmake ;
+    fi
+
+script:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      export CC=gcc-7 ;
+      export CXX=g++-7 ;
+    fi
+  - cmake --version
+  - mkdir -p build
+  - cd build
+	- cmake -G "Unix Makefiles" ../sources/
+  - make
+  - make test
