@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
 #include <sys/stat.h>
 
 void fill_size_t_buffer(size_t *rbuff, size_t buffsize) {
