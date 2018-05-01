@@ -41,6 +41,7 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
     packages:
+      - clang
       - gcc-7
       - g++-7
 
