@@ -3,6 +3,7 @@
 #define COOL_IO_H
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef struct CBuff {
   size_t    size;
