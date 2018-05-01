@@ -6,6 +6,12 @@ language: c
 
 dist: trusty
 
+branches:
+  only:
+  - master
+  - dev
+
+
 addons:
   apt:
     sources:
