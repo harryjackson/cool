@@ -8,14 +8,6 @@ dist: trusty
 
 env:
     matrix:
-      - TARGET=distcheck
-      - TARGET=test
-      - TARGET=coverage
-      - OS=el DIST=6
-      - OS=el DIST=7
-      - OS=fedora DIST=26
-      - OS=fedora DIST=27
-      - OS=fedora DIST=rawhide
       - OS=ubuntu DIST=trusty
       - OS=ubuntu DIST=xenial
       - OS=ubuntu DIST=artful
@@ -42,6 +34,8 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
     packages:
+      - libapr1 
+      - libapr1-dev
       - gcc-7
       - g++-7
 
